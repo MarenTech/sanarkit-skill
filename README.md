@@ -24,10 +24,8 @@ This skill works with agents that support the Agent Skills format (`SKILL.md`). 
 1. Get the repository:
 
    ```sh
-   git clone <repository URL, to confirm>
+   git clone https://github.com/MarenTech/sanarkit-skill.git
    ```
-
-   The GitHub URL is to confirm. It will be added here once the repository is published.
 
 2. Copy the whole `skills/sanarkit-integration/` folder into your agent's skills folder. Copy the folder, not only `SKILL.md`: the files in `references/` hold the steps the agent follows. The folder name must stay `sanarkit-integration`.
 
@@ -57,8 +55,8 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 | SDK | Version the references were written against |
 | --- | --- |
-| React Native | `@maren-sa/react-native-sanarkit` 3.0.1 (the package's compatibility table covers React Native 0.68 to 0.81; the officially supported range is to confirm) |
-| iOS | The SanarKit Swift Package, as described in its README dated 2025-09-02 (the minimum iOS version is to confirm: `Package.swift` declares iOS 15, but the shipped binary is built for iOS 17.5) |
+| React Native | `@maren-sa/react-native-sanarkit` 3.0.1, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x). It targets React Native's legacy architecture |
+| iOS | The SanarKit Swift Package, tag 2.1.1 (iOS 17.5 or later, Xcode 16.4 or later) |
 | Android | The SanarKit `.aar`, version 2.1.1 |
 
 The Web SDK is not covered. When an SDK releases a new version, update its references together with the developer docs.

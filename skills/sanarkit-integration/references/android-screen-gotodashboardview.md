@@ -33,6 +33,8 @@ Do not create a new screen unless the developer asks. Put the entry point on the
 
 The dashboard is a screen of its own that the SDK starts with `startActivity`. It is **not** a destination of the app's navigation graph, a tab or a Fragment, so do not add one for it.
 
+**"Show the dashboard on the home screen."** `gotoDashboardView()` starts a separate full-screen Activity, so the dashboard cannot be embedded in the home screen's layout, as a view, as the content of a tab or in a Fragment. If the developer asks for it on the home screen, say so, and offer a button (or a card or a list row) on the home screen that calls `gotoDashboardView()`. That is the pattern below. Do not look for a way to inflate the dashboard inside the screen.
+
 ### Activity (views)
 
 The Activity that owns `sanar` shows the entry point. The button is the app's own (`R.id.open_sanar_dashboard` here). It is disabled until `connect` succeeds:
@@ -128,7 +130,7 @@ In the composable, show the button as enabled only when `isSanarConnected` is tr
 ## Verify
 
 - `./gradlew assembleDebug` builds. A wrong import or a missing dependency shows up here (`android-troubleshooting.md`).
-- With the client ID still the placeholder, `connect` is never called, the entry point stays disabled, and the app does not crash. That proves the wiring, not the dashboard.
+- With the client ID still the placeholder, `connect` is never called, the entry point stays disabled, and the app does not crash. That shows the entry point waits for the session; the full flow needs a real client ID.
 - With a valid client ID for the environment, tapping the entry point opens the dashboard on top of the app, and Back eventually returns to the app's screen.
 - If a "Sanar Not Connected" toast appears, the call ran on an instance that has no session. See `android-troubleshooting.md`.
 - If you cannot run the app or connect (no emulator, no real client ID), say that you could not verify the dashboard itself.

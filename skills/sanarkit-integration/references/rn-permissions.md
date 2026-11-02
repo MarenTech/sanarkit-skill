@@ -49,6 +49,10 @@ SanarKit asks for permission through `react-native-permissions`. Enable the Came
    cd ios && pod install
    ```
 
+   If Bundler or the `Gemfile` cannot run (for example an old system Ruby), plain `pod install` is acceptable. If the app has the New Architecture off, put `RCT_NEW_ARCH_ENABLED=0` in front of it (`rn-installation.md`, "New Architecture").
+
+   **Run `pod install` again after any later npm install.** `setup_permissions` rewrites a podspec inside `node_modules` (the one of `react-native-permissions`), and an install can put the original file back, so the pods would lose the Camera and Microphone permissions until `pod install` runs again.
+
 Check these before you edit:
 
 - **The path.** `../node_modules/...` assumes `node_modules` sits next to `ios/`. In a monorepo, or with pnpm, the package may be somewhere else. Check that the file `scripts/setup.rb` exists at the path you write, and look at how the `Podfile` already finds React Native (the `require` or `require_relative` lines at its top) to copy the same style.

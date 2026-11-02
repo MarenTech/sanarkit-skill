@@ -128,7 +128,7 @@ In the composable, show the button as enabled only when `isSanarConnected` is tr
 ## Verify
 
 - `./gradlew assembleDebug` builds. A wrong import or a missing dependency shows up here (`android-troubleshooting.md`).
-- With the client ID still the placeholder, `connect` is never called, the entry point stays disabled, and the app does not crash. That proves the wiring, not the appointment list.
+- With the client ID still the placeholder, `connect` is never called, the entry point stays disabled, and the app does not crash. That shows the entry point waits for the session; the full flow needs a real client ID.
 - With a valid client ID for the environment, tapping the entry point opens the appointment list on top of the app, and Back eventually returns to the app's screen.
 - If a "Sanar Not Connected" toast appears, the call ran on an instance that has no session. See `android-troubleshooting.md`.
 - If you cannot run the app or connect (no emulator, no real client ID), say that you could not verify the appointment list itself.

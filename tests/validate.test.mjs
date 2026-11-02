@@ -122,13 +122,22 @@ const CLIENT_ID_PLIST =
 
 const isPlaceholder = (value) => /^<[^<>]*>$/.test(value.trim());
 
-// An unquoted value that refers to a secret instead of containing one: a variable substitution
-// ($(X), ${X}, %X%, @X@), a call, a null, a lookup on a well-known config object
-// (BuildConfig.X, process.env.X), or a variable name (letters and underscores, with an
-// underscore or camelCase, and no digits). A literal such as abcdef123456 is none of these.
+// A value that is only a build-variable substitution: $(X) or ${X}, or several in a row, and
+// nothing else. The delimiters that can follow it in a code line (a closing quote or bracket, a
+// comma, a semicolon) are not part of the value. A substitution that sits in front of or behind a
+// literal, as in ${PREFIX}abcdef123456, is NOT a lookup: the literal part is the secret.
+const WHOLE_SUBSTITUTION = /^(?:\$(?:\([^)]*\)|\{[^}]*\}))+[`'",;)\]]*$/;
+
+// An unquoted value that refers to a secret instead of containing one: a whole-value substitution
+// ($(X), ${X}, %X%, @X@), a call (name(...) and nothing after it), a null, a lookup on a well-known
+// config object (BuildConfig.X, process.env.X), or a variable name (letters and underscores, with an
+// underscore or camelCase, and no digits). A literal such as abcdef123456 is none of these, and
+// neither is a substitution with a literal prefix or tail.
 const CONFIG_ROOT = /^(?:BuildConfig|Config|Constants|Env|ProcessInfo|System|Bundle|process|import|env)\b[\w.]*[,;]?$/;
 function refersToSecret(value) {
-  if (/^[$%@{(]/.test(value) || /[()$]/.test(value)) return true;
+  if (WHOLE_SUBSTITUTION.test(value)) return true;
+  if (/^(?:%[^%\s]+%|@[^@\s]+@)[,;]?$/.test(value)) return true;
+  if (/^[A-Za-z_][\w.]*\(.*\)[,;]?$/.test(value)) return true; // a call: getClientId(), decode(raw)
   if (/^(?:null|nil|none|undefined|true|false)[,;]?$/i.test(value)) return true;
   if (CONFIG_ROOT.test(value)) return true;
   return /^[A-Za-z_]+[,;]?$/.test(value) && /_|[a-z][A-Z]/.test(value);
@@ -236,7 +245,7 @@ function buildConfigClientIdLiterals(text) {
 
 function findClientIdLiterals(text) {
   const quoted = [...text.matchAll(CLIENT_ID_LITERAL)]
-    .filter((match) => !isPlaceholder(match[1]) && !/^\$[({]/.test(match[1].trim())) // a quoted substitution is a lookup
+    .filter((match) => !isPlaceholder(match[1]) && !WHOLE_SUBSTITUTION.test(match[1].trim())) // only a whole-value substitution is a lookup
     .map((match) => ({ text: match[0], value: match[1] }));
   const unquoted = [...text.matchAll(CLIENT_ID_UNQUOTED)]
     .filter((match) => match[1].length >= 6 && !refersToSecret(match[1]))
@@ -299,7 +308,7 @@ test('frontmatter follows the Agent Skills spec', () => {
     assert.equal(typeof value, 'string', `metadata.${key} is a string`);
   }
   const versions = fm.metadata['sdk-versions'];
-  for (const covered of ['react-native 3.0.1', 'ios 2025-09-02', 'android 2.1.1']) {
+  for (const covered of ['react-native 3.0.1', 'ios 2.1.1', 'android 2.1.1']) {
     assert.ok(versions?.includes(covered), `metadata.sdk-versions mentions "${covered}"`);
   }
 });
@@ -632,6 +641,50 @@ test('no real-looking client ID anywhere', () => {
     assert.equal(findClientIdLiterals(allowed).length, 0, `detector should allow: ${allowed}`);
   }
 
+  // E2E fix round, item 22: only a substitution that is the WHOLE value is a lookup. A substitution
+  // in front of (or behind) a literal is a prefix or suffix plus a literal tail, and the tail is the
+  // secret. The plants are assembled at run time, so this file never contains a literal that the
+  // scan below would flag (and no template string here interpolates a substitution by accident).
+  const parenSub = (name) => '$' + '(' + name + ')'; // $(NAME)
+  const braceSub = (name) => '$' + '{' + name + '}'; // ${NAME}
+  const plistEntry = (value) => '<key>SANAR_CLIENT_ID<' + '/key><string>' + value + '</string>'; // built in two parts, so the scan below does not see a plist entry
+  for (const [quote, key] of [['"', 'clientId'], ["'", 'SANAR_CLIENT_ID'], ['"', 'authToken']]) {
+    for (const sub of [braceSub('PREFIX'), parenSub('PREFIX')]) {
+      assert.equal(
+        findClientIdLiterals(sample(key, ' = ', quote, sub + secret)).length,
+        1,
+        `detector should flag a substitution followed by a literal tail: ${key} ${sub}`,
+      );
+    }
+    assert.equal(
+      findClientIdLiterals(sample(key, ' = ', quote, secret + braceSub('SUFFIX'))).length,
+      1,
+      `detector should flag a literal followed by a substitution: ${key}`,
+    );
+  }
+  for (const found of [
+    `SANAR_CLIENT_ID = ${parenSub('PREFIX')}${secret}`,
+    `SANAR_CLIENT_ID=${braceSub('PREFIX')}${secret}`,
+    `SANAR_CLIENT_ID[config=Release] = ${parenSub('PREFIX')}${secret}`,
+    `SANAR_CLIENT_ID = ${secret}${parenSub('SUFFIX')}`,
+    plistEntry(parenSub('PREFIX') + secret),
+  ]) {
+    assert.equal(findClientIdLiterals(found).length, 1, `detector should flag the substitution plus a literal in: ${found}`);
+  }
+  for (const allowed of [
+    sample('clientId', ' = ', '"', parenSub('SANAR_CLIENT_ID')),
+    sample('clientId', ' = ', "'", braceSub('SANAR_CLIENT_ID')),
+    sample('clientId', ' = ', '"', parenSub('SANAR_CLIENT_ID_A') + parenSub('SANAR_CLIENT_ID_B')),
+    `SANAR_CLIENT_ID = ${parenSub('SANAR_CLIENT_ID_RELEASE')}`,
+    `SANAR_CLIENT_ID = ${braceSub('SANAR_CLIENT_ID_RELEASE')}`,
+    `SANAR_CLIENT_ID[config=Release] = ${parenSub('SANAR_CLIENT_ID_RELEASE')} // prod`,
+    plistEntry(parenSub('SANAR_CLIENT_ID')),
+    'authToken = getClientId()',
+    'cid = decodeClientId(raw)',
+  ]) {
+    assert.equal(findClientIdLiterals(allowed).length, 0, `detector should allow a whole-value substitution or call: ${allowed}`);
+  }
+
   const offenders = [];
   for (const file of walk(ROOT, skipRepoNoise)) {
     if (statSync(file).size > 1024 * 1024) continue;
@@ -777,4 +830,52 @@ test('android connect reference keeps the client ID out of source', () => {
   for (const name of readdirSync(REFS_DIR).filter((f) => f.startsWith('android-') && f.endsWith('.md'))) {
     assert.deepEqual(androidClientIdProblems(fencedCode(readText(androidReference(name)))), [], `${name}: client ID literals in Gradle or fallbacks`);
   }
+});
+
+// ---- E2E fix round: wording that must not come back, and the safety statements that must stay ----
+
+test('e2e fixes: stale wording is gone and the safety statements stay', () => {
+  const read = (name) => readText(join(REFS_DIR, name));
+  const referenceNames = readdirSync(REFS_DIR).filter((name) => name.endsWith('.md'));
+
+  // Wording that earlier reviews and the end-to-end runs showed to be wrong.
+  const stale = [
+    [/proves the wiring/i, 'say that the entry point waits for the session; the full flow needs a real client ID'],
+    [/every command prints something/i, '`test -f` is silent when the file exists'],
+    [/\bgit ls-files <path>/, 'use the test -f plus --error-unmatch form'],
+  ];
+  for (const name of [...referenceNames, '../SKILL.md']) {
+    const text = readText(join(REFS_DIR, name));
+    for (const [pattern, fix] of stale) assert.ok(!pattern.test(text), `${name} matches ${pattern}: ${fix}`);
+  }
+  assert.ok(!/print nothing/i.test(readText(SKILL_MD)), 'SKILL.md describes the tracked check with --error-unmatch');
+  assert.ok(readText(SKILL_MD).includes('--error-unmatch'), 'SKILL.md uses the --error-unmatch form');
+
+  // Each connect reference gives the committed example file its own header.
+  for (const name of ['rn-connect.md', 'ios-connect.md', 'android-connect.md']) {
+    assert.ok(
+      read(name).includes('this example is committed and holds placeholders only'),
+      `${name}: the example file has its own header`,
+    );
+  }
+  const rnConnect = read('rn-connect.md');
+  assert.ok(rnConnect.includes('test -f <path>/sanar.config.ts'), 'rn-connect.md checks that the file exists first');
+  assert.ok(rnConnect.includes('--error-unmatch'), 'rn-connect.md uses the --error-unmatch form');
+
+  // React Native: install with Reanimated, never --force, the svg experiment is explicit.
+  assert.match(read('rn-installation.md'), /npm install @maren-sa\/react-native-sanarkit "react-native-reanimated@/);
+  const rnTroubleshooting = read('rn-troubleshooting.md');
+  assert.ok(rnTroubleshooting.includes('to confirm with the Sanar team'), 'the svg 15 experiment is marked to confirm with the Sanar team');
+  assert.ok(rnTroubleshooting.includes('Ask the developer before you apply it'), 'the svg 15 change needs the developer first');
+  assert.ok(rnTroubleshooting.includes('Ask the developer first'), 'the Podfile change needs the developer first');
+  assert.ok(rnTroubleshooting.includes('does **not** help'), 'rm -rf Pods does not fix the device-info target');
+  for (const name of ['rn-installation.md', 'rn-troubleshooting.md']) {
+    assert.ok(read(name).includes('RCT_NEW_ARCH_ENABLED=0'), `${name}: pod install with the New Architecture off`);
+  }
+
+  // iOS: a base configuration that does not exist fails the build, so the wrapper is recommended.
+  const iosConnect = read('ios-connect.md');
+  assert.ok(iosConnect.includes('SanarBase.xcconfig'), 'ios-connect.md recommends the committed wrapper');
+  assert.ok(iosConnect.includes('#include? "Sanar.xcconfig"'), 'the wrapper includes the secret file optionally');
+  assert.ok(iosConnect.includes('Unable to open base configuration reference file'), 'ios-connect.md names the exit 65 failure');
 });

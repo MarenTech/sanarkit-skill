@@ -64,7 +64,7 @@ The generated `BuildConfig` lacks the field. Check that the `buildConfigField` l
 
 ### `local.properties` shows up in `git status`
 
-It is not ignored, or it is already tracked. Check with real paths, from the project root, and use the same form as `android-connect.md`, where every command prints something:
+It is not ignored, or it is already tracked. Check with real paths, from the project root, and use the same form as `android-connect.md` (`test -f` prints `MISSING` only if the file is absent and is silent otherwise; the two `git` commands print on every outcome):
 
 ```sh
 test -f local.properties || echo "MISSING: wrong folder, or the file does not exist yet"

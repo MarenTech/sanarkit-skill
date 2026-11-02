@@ -19,17 +19,17 @@ Xcode shows a resolution error, or the package stays in a loading state.
 
 ### Xcode says the package requires a higher minimum platform version
 
-`Package.swift` declares iOS 15 as the minimum platform. If the app target's deployment target is lower, Xcode refuses to link the package product. **Ask before you raise the deployment target.** 15.0 is the least the package declares. The framework itself is built for iOS 17.5, see the next entry.
+`Package.swift` declares iOS 15 as the minimum platform. If the app target's deployment target is lower, Xcode refuses to link the package product. SanarKit requires iOS 17.5 or later, so **ask before you raise the deployment target to 17.5**. Do not raise it only to 15.0.
 
 ### The linker warns that SanarKit was built for a newer iOS version
 
 The build log shows a warning such as `building for iOS-simulator-15.0, but linking with dylib '@rpath/SanarKit.framework/SanarKit' which was built for newer version 17.5`. The first part names the app's deployment target, so it differs for you.
 
-`SanarKit.xcframework` is built for iOS 17.5, although `Package.swift` declares iOS 15. Raising the deployment target to 17.5 removes the warning. How the framework behaves on iOS 15 to 17.4 has not been verified, and the real minimum is **to confirm** with the Sanar team. This is not an integration error. Do not change the target and do not hide the warning: report it and ask, as `ios-installation.md` describes.
+SanarKit requires iOS 17.5 or later. `SanarKit.xcframework` is built for iOS 17.5, although `Package.swift` declares iOS 15, so Xcode builds a lower target with this warning. Raising the deployment target to 17.5 removes it. This is not an integration error. Do not change the target unasked and do not hide the warning: report it and ask, as `ios-installation.md` describes.
 
 ### Xcode says the package needs a newer Swift tools version
 
-`Package.swift` declares `swift-tools-version: 5.10`. An Xcode that includes an older Swift cannot read the manifest. The developer has to update Xcode. Which Xcode versions Sanar supports is **to confirm** (the framework was built with Xcode 16.4).
+`Package.swift` declares `swift-tools-version: 5.10`. An Xcode that includes an older Swift cannot read the manifest. SanarKit requires Xcode 16.4 or later, so the developer has to update Xcode.
 
 ### No such module 'SanarKit'
 
@@ -45,6 +45,12 @@ The build cannot find the framework.
 If the app already embeds a `SanarKit.framework` or `SanarKit.xcframework` by hand and the package was added too, two copies of the framework are in the app. Report it and ask which one to keep before you remove either.
 
 ## Build
+
+### The build fails with exit 65: `Unable to open base configuration reference file`
+
+`xcodebuild` ends with `** BUILD FAILED **` and exit code 65, and names a base configuration reference file that cannot be opened. The target's base configuration is `Sanar.xcconfig`, which is git-ignored, and the machine (a fresh clone, a CI machine) does not have it. A build with a missing base configuration file fails: it does not "succeed with empty keys".
+
+Never commit the real `Sanar.xcconfig` to fix it. Make the base configuration a committed wrapper file, `SanarBase.xcconfig`, that contains `#include? "Sanar.xcconfig"`, as `ios-connect.md` describes. A missing optional include is ignored, so the build then succeeds with empty keys. Ask before you change the project file, and use the project's own base configuration file instead if it already has one (add the `#include?` line there).
 
 ### 'NavigationStack' is only available in iOS 16.0 or newer
 
@@ -99,16 +105,24 @@ Check these, in order:
 
 Print `error.localizedDescription` while you debug. Never print `clientInfo` or the client ID. Which errors `connect` throws, and what each one means, is **to confirm**: the README does not list them. If everything above is right, ask the Sanar team, and give them the error text, the bundle identifier and the environment.
 
+### `connect` throws `NSURLErrorDomain` error -1017
+
+A rejected client ID can show up as an `NSURLErrorDomain` error with code -1017 (`NSURLErrorCannotParseResponse`, "cannot parse response") from `SKManager.connect`, and not as a readable message. In the end-to-end run, `connect` threw this with an invalid client ID against the development environment, and the app's dashboard button stayed disabled.
+
+When you see it, check these, in order: the client ID is the one for the environment that is set and it is not still the placeholder; `SKManager.setEnvironment` ran before `connect`; `bundleId` is the app's real bundle identifier. Do not print the client ID while you check.
+
+This was seen with an invalid client ID only. What the server returns for a rejected client ID, a wrong environment or a wrong bundle identifier, and whether each of them produces this error, is **to confirm**. If everything above is right, ask the Sanar team, and give them the error text, the bundle identifier and the environment.
+
 ### The client ID is nil, or looks cut short
 
 If the client ID is kept in `Sanar.xcconfig`, as `ios-connect.md` describes, check these. Do not print the value:
 
 - **First check what reached the app.** A placeholder makes `SanarConfig.clientID` `nil` even when the key is in the built `Info.plist`, so a `nil` client ID alone does not say where the problem is. Read the built app's `Info.plist` as `ios-connect.md` describes under "Verify": the environment (`PlistBuddy -c "Print :SANAR_ENVIRONMENT"`) must print `development` or `production`, and the client ID key must be present. Never print the client ID key itself.
-- **It is nil.** `Bundle.main.object(forInfoDictionaryKey: "SANAR_CLIENT_ID")` returns `nil` when `Info.plist` has no `SANAR_CLIENT_ID` key, or when `Sanar.xcconfig` is not applied to the build configuration being run. Check the target's **Info** tab, under **Configurations**. If a configuration already uses another config file, `Sanar.xcconfig` has to be included from it with `#include? "Sanar.xcconfig"`, because choosing it there would replace the existing file. If that file is the one CocoaPods generates under `Pods/`, the include is lost every time `pod install` runs: use an app-owned xcconfig that includes both, as `ios-connect.md` describes. Never edit anything under `Pods/`.
+- **It is nil.** `Bundle.main.object(forInfoDictionaryKey: "SANAR_CLIENT_ID")` returns `nil` when `Info.plist` has no `SANAR_CLIENT_ID` key, or when `Sanar.xcconfig` is not applied to the build configuration being run. Check the target's **Info** tab, under **Configurations**. If a configuration already uses another config file, `Sanar.xcconfig` has to be included from it with `#include? "Sanar.xcconfig"`, because choosing it there would replace the existing file. If `Sanar.xcconfig` is itself the base configuration, a build without the file fails instead (see "Unable to open base configuration reference file" above), so use the committed `SanarBase.xcconfig` wrapper. If that file is the one CocoaPods generates under `Pods/`, the include is lost every time `pod install` runs: use an app-owned xcconfig that includes both, as `ios-connect.md` describes. Never edit anything under `Pods/`.
 - **The key is in the project but the value is empty.** The app's Info.plist is generated (`GENERATE_INFOPLIST_FILE = YES`) and has no file, so custom keys may not have been carried into the built app. Ask before you add an `Info.plist` file.
 - **It is the placeholder.** The config file still holds `<CLIENT_ID from config>`. `SanarConfig` treats a value that starts with `<` as missing. The developer has to fill in the real value. Check with `grep -c "CLIENT_ID from config" <path>/Sanar.xcconfig`, which prints only a count.
 - **It is cut short.** An `.xcconfig` file reads two slashes in a row as the start of a comment. If the client ID contains two slashes, write each pair as slash, `$()`, slash. `$()` expands to nothing, so the app gets the original value.
-- **A CI build or a fresh clone has empty keys.** `Sanar.xcconfig` is git-ignored, so a machine that cloned the repository does not have it. The optional include and the config setting are then empty, the build still succeeds, and the app never calls `connect`. CI must write the file from its secret store before it builds (without echoing the values into the build log), and a developer on a fresh clone copies `Sanar.xcconfig.example` and fills it in.
+- **A CI build or a fresh clone has empty keys.** `Sanar.xcconfig` is git-ignored, so a machine that cloned the repository does not have it. With the committed wrapper (or the app's own xcconfig) and `#include?`, the include is then empty, the build still succeeds, and the app never calls `connect`. If `Sanar.xcconfig` is the base configuration itself, the build fails instead (exit 65). CI must write the file from its secret store before it builds (without echoing the values into the build log), and a developer on a fresh clone copies `Sanar.xcconfig.example` and fills it in.
 - **The environment does not match.** The Release configuration has to override `SANAR_ENVIRONMENT` and `SANAR_CLIENT_ID` with the production values, as in the config file in `ios-connect.md`. A configuration with another name (Staging, Beta) needs its own lines.
 
 ### After a user switch or a sign-out, the earlier member is still connected

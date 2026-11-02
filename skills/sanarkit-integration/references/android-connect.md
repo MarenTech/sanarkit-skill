@@ -51,7 +51,7 @@ A user-level `~/.gradle/gradle.properties` is outside the repository and also wo
    git ls-files --error-unmatch -- local.properties 2>/dev/null && echo "TRACKED: stop and tell the developer" || echo "not tracked"
    ```
 
-   Every command prints something, so an empty result cannot pass by accident. You want: no `MISSING`, a `.gitignore` rule printed by `git check-ignore`, and `not tracked`. Android Studio lists `local.properties` in `.gitignore` for new projects, but this project may not. `MISSING` means the file does not exist yet: create it (step 2) and run the checks again. `NOT IGNORED` means you must add `local.properties` to the `.gitignore` and check again. `TRACKED` means the file is already in Git (Git then also reports `NOT IGNORED`, because it does not apply ignore rules to tracked files): stop and tell the developer, and do not rewrite Git history or untrack files without asking.
+   `test -f` prints `MISSING` only if the file is absent (it is silent when the file exists); the two `git` commands print on every outcome, so an empty result from them cannot pass by accident. You want: no `MISSING`, a `.gitignore` rule printed by `git check-ignore`, and `not tracked`. `not tracked` only counts once `test -f` has confirmed that the path is real, because a wrong path makes `git ls-files --error-unmatch` fail in the same way. Android Studio lists `local.properties` in `.gitignore` for new projects, but this project may not. `MISSING` means the file does not exist yet: create it (step 2) and run the checks again. `NOT IGNORED` means you must add `local.properties` to the `.gitignore` and check again. `TRACKED` means the file is already in Git (Git then also reports `NOT IGNORED`, because it does not apply ignore rules to tracked files): stop and tell the developer, and do not rewrite Git history or untrack files without asking.
 
 2. **Add placeholders.** Append these lines to `local.properties`, below whatever is there (Android Studio keeps `sdk.dir` in it, so never overwrite the file). The developer fills in the real values:
 
@@ -62,7 +62,13 @@ A user-level `~/.gradle/gradle.properties` is outside the repository and also wo
    sanar.production.clientId=<CLIENT_ID from config>
    ```
 
-3. **Add a committed example file** (do not run `git commit` yourself: leave it for the developer to review). Create `local.properties.example` in the same folder with only the lines above (never `sdk.dir`, never a real value). It is meant to be tracked, so a fresh clone knows the key names (`cp local.properties.example local.properties`, then fill in). Check that no `.gitignore` rule swallows it: `git check-ignore -v local.properties.example || echo "not ignored"` must print `not ignored`. The build below still works when the keys are missing: the client ID is then empty and the app does not call `connect`.
+3. **Add a committed example file** (do not run `git commit` yourself: leave it for the developer to review). Create `local.properties.example` in the same folder with the placeholder lines above (never `sdk.dir`, never a real value), and **its own header** instead of the first comment line (keep the second comment line). The first line of the real file ("Do not commit this file") is wrong for the example, because the example is committed. Use this header:
+
+   ```text
+   # Copy to local.properties and fill in; this example is committed and holds placeholders only.
+   ```
+
+   It is meant to be tracked, so a fresh clone knows the key names (`cp local.properties.example local.properties`, then fill in). Check that no `.gitignore` rule swallows it: `git check-ignore -v local.properties.example || echo "not ignored"` must print `not ignored`. The build below still works when the keys are missing: the client ID is then empty and the app does not call `connect`.
 
 4. **Expose them as `BuildConfig` fields** in the app module's build file. Merge the lines into the `android { }` block, `buildTypes` and `release` blocks the file already has, and put the `import` at the top. Android Gradle Plugin 8 and later does not generate `BuildConfig` unless `buildFeatures { buildConfig = true }` is set.
 
@@ -398,7 +404,7 @@ For a member with the optional fields, use `copy` (only with data the app really
 val dependentMember = sanarUserInfo(user).copy(isDependent = true)
 ```
 
-The shape, with **demo data** only. Do not copy these values into the app:
+The shape, with **demo data** only. Never copy these values in as a real member's data: map the app's own user fields. If the app has its own placeholder or test user that happens to hold the same values, that is the app's data and needs no warning:
 
 ```kotlin
 fun demoMember() = UserInfo(
@@ -477,6 +483,6 @@ If a `goto*` method is called before `connect` has succeeded, or after `disconne
 
 - `local.properties` is ignored and untracked (the three checks above, with the path as it is from where you run them), `local.properties.example` holds only placeholders, and `git diff` and `git status` show no client ID in any tracked or untracked file you added except the git-ignored one.
 - The app builds with the placeholders in place (`./gradlew assembleDebug`). The generated `BuildConfig` has the two fields. Check without printing the value: `grep -c "SANAR_CLIENT_ID" app/build/generated/source/buildConfig/debug/<package path>/BuildConfig.java` prints only a count.
-- The app starts with the placeholders in place. The session reports false, `connect` is never called, and no Sanar screen opens. This proves the wiring, not the credentials.
-- With a real client ID for the right environment, `onSuccess` runs and the entry point is enabled. Only the developer can check this. If you cannot, say that you did not verify it.
+- The app starts with the placeholders in place. The session reports false, `connect` is never called, and no Sanar screen opens. This shows the entry point waits for the session; the full flow needs a real client ID.
+- With a real client ID for the right environment, `onSuccess` runs and the entry point is enabled. Only the developer can check this. If you cannot, say that you did not verify it. The `.aar` is only about 23 KB, so the content of the Sanar screens loads at run time (inferred from the size, to confirm): the dashboard and the other screens cannot be checked without a real client ID.
 - If `connect` fails, read `android-troubleshooting.md`. Do not print `userInfo`, the client ID or the success line of the Logcat output while you debug.

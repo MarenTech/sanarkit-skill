@@ -111,7 +111,7 @@ The same rules apply: the Activity owns the `SanarSession`, and a composable rec
 ## Verify
 
 - `./gradlew assembleDebug` builds, and the merged manifest declares `CAMERA` and `RECORD_AUDIO` (`android-installation.md` shows the check).
-- With the client ID still the placeholder, `connect` is never called, `onResult` gets `false`, and nothing opens. That proves the wiring, not the consultation.
+- With the client ID still the placeholder, `connect` is never called, `onResult` gets `false`, and nothing opens. That shows the entry point waits for the session; the full flow needs a real client ID.
 - With a valid client ID and a real appointment ID and doctor ID from the Sanar team, the notification (or the button) opens the consultation page. The camera and microphone requests appear when it opens. If the app is killed first, the consultation still opens after the new connect.
 - An "Invalid appointment or doctor ID" toast means an ID is empty. A "Sanar Not Connected" toast means the call ran on an instance without a session. See `android-troubleshooting.md`.
 - If you cannot run the app, connect, or get real IDs, say that you could not verify the consultation itself.

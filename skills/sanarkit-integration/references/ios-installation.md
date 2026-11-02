@@ -1,6 +1,6 @@
 # iOS installation
 
-Add the SanarKit Swift Package to an iOS app, add the camera and microphone usage strings, and check the minimum iOS version. This file covers: checks before you install, the minimum iOS version (to confirm), adding the package, the permission strings and how to verify.
+Add the SanarKit Swift Package to an iOS app, add the camera and microphone usage strings, and check the minimum iOS version. This file covers: checks before you install, the minimum iOS version, adding the package, the permission strings and how to verify.
 
 This is the native iOS SDK, a separate product from the React Native SDK. Everything here follows the SanarKit README dated 2025-09-02 (newest tag in the repository at the time: 2.1.1), reviewed against the shipped `SanarKit.xcframework`. If the installed package disagrees with this file, trust the installed package and tell the developer.
 
@@ -22,27 +22,22 @@ This is the native iOS SDK, a separate product from the React Native SDK. Everyt
    ```
 
    Use `-workspace <App>.xcworkspace` instead of `-project` for a workspace. `xcodebuild -list` shows the schemes. The value can differ per target and per configuration: read the app target's.
-4. **Xcode.** Run `xcodebuild -version`. The package's `Package.swift` declares `swift-tools-version: 5.10`, so Xcode has to include Swift 5.10 or later. The shipped framework was built with Xcode 16.4 (Swift 6.1.2). The minimum Xcode version is **to confirm**. If Xcode is older than 16.4 or cannot import the framework, tell the developer and ask the Sanar team which versions they support.
+4. **Xcode.** Run `xcodebuild -version`. SanarKit requires Xcode 16.4 or later (the shipped framework was built with Xcode 16.4, Swift 6.1.2). If Xcode is older, tell the developer to update it before you go on. Do not work around it.
 5. **A client ID** from the Sanar team, to connect a member. You do not need it to install.
 
-## Minimum iOS version (to confirm)
+## Minimum iOS version
 
-Two facts disagree, and the Sanar team has not settled which one is the real minimum:
-
-- `Package.swift` declares iOS 15 (`.iOS(.v15)`). This is what Xcode checks when you add the package.
-- The shipped `SanarKit.xcframework` is built for iOS 17.5. Both slices (iOS devices, arm64; iOS Simulator, arm64 and x86_64) have a minimum OS version of 17.5.
-
-How the framework behaves on iOS 15 to 17.4 has not been verified. Treat iOS 17.5 as the safe minimum.
+SanarKit requires iOS 17.5 or later. The shipped `SanarKit.xcframework` is built for iOS 17.5: both slices (iOS devices, arm64; iOS Simulator, arm64 and x86_64) have a minimum OS version of 17.5. `Package.swift` declares iOS 15 (`.iOS(.v15)`). That is only what Xcode checks when you add the package, so a target of 15.0 to 17.4 builds with a linker warning instead of an error.
 
 **Ask before changing the deployment target.** It changes which devices can install the app, so it is the developer's decision, not yours. Read the target (check 3 above), tell the developer which case applies, and ask:
 
 | App's deployment target | What happens | What to do |
 | --- | --- | --- |
 | 17.5 or higher | Nothing to change | Go on |
-| 15.0 to 17.4 | The package links. The linker warns that SanarKit "was built for newer version 17.5", with your target in the first half of the message. Behavior on this range is unverified | Do not change the target. Tell the developer about the warning. Ask whether to keep the target and accept the warning, or raise it to 17.5. Say that shipping below 17.5 is to confirm with the Sanar team. Do not hide the warning |
-| Below 15.0 | Xcode refuses to link the package product, because the package declares iOS 15 | Ask before raising it. Say that 15.0 is only what the package declares and that 17.5 is the safe minimum |
+| 15.0 to 17.4 | The package links. The linker warns that SanarKit "was built for newer version 17.5", with your target in the first half of the message. The target is below SanarKit's minimum | Tell the developer that SanarKit requires iOS 17.5, and ask whether to raise the target to 17.5. Do not change it unasked, and do not hide the warning |
+| Below 15.0 | Xcode refuses to link the package product, because the package declares iOS 15 | Tell the developer that SanarKit requires iOS 17.5, and ask whether to raise the target to 17.5. Do not raise it only to 15.0 |
 
-Leave the target alone if the developer says no, and report the warning. The target also decides the SwiftUI navigation API in the view references: iOS 16 and later can use `NavigationStack`. Below 16 use the `NavigationView` variant instead of raising the target.
+Leave the target alone if the developer says no, and report that the app's target is below SanarKit's minimum. The target also decides the SwiftUI navigation API in the view references: iOS 16 and later can use `NavigationStack`. If the developer keeps a target below 16, use the `NavigationView` variant.
 
 ## Add the package
 
@@ -56,7 +51,9 @@ The package product is `SanarKit` and the module name is `SanarKit`. Pick the ca
 
 ### An Xcode project (`.xcodeproj` or `.xcworkspace`)
 
-Xcode has no command-line tool that adds a package dependency to an `.xcodeproj`. Default to asking the developer to do these steps in Xcode, and wait:
+Xcode has no command-line tool that adds a package dependency to an `.xcodeproj`, so it needs either Xcode or an edit of `project.pbxproj`. **Ask the developer which they want**, and offer both: they add the package in Xcode (the steps below, and you wait), or you edit `project.pbxproj` (only if they say yes). Do not choose for them.
+
+To add it in Xcode:
 
 1. Select the project in the Project navigator, open the **Package Dependencies** tab, and click **+** (or choose **File > Add Package Dependencies...**).
 2. Paste the package address into the search field, select the **SanarKit** package, and click **Add Package**. Keep the dependency rule Xcode proposes (**Up to Next Major Version** from the newest tag). Do not copy a version from a screenshot.
@@ -65,7 +62,7 @@ Xcode has no command-line tool that adds a package dependency to an `.xcodeproj`
 
 If the project is generated (XcodeGen or Tuist), add the package address and the `SanarKit` product to the app target in that tool's own file, in its own syntax, and regenerate with the command the developer normally uses. Look at how the file declares its other packages and follow that.
 
-Do not hand-edit `project.pbxproj` to add the package unless the developer asks you to. It is easy to corrupt, and a wrong edit can make Xcode refuse to open the project.
+If the developer chooses the `project.pbxproj` edit, it needs a package reference, a product dependency on the app target and a build-file entry. It is easy to corrupt, and a wrong edit can make Xcode refuse to open the project: keep the change small, read the diff, and check it with the resolve command and a build below. The same question covers the files that the rest of the integration adds. A project that lists its files explicitly in `project.pbxproj` (no synchronized folders) needs an entry for every new Swift file and for the `.xcconfig` (`ios-connect.md`, question 5), so ask once for all of it.
 
 Then resolve and check:
 
@@ -134,6 +131,6 @@ The module name is `SanarKit`, with a capital K and a lowercase `import`. Swift 
   ```
 
   If this fails only after your change, read `ios-troubleshooting.md` before you change anything else.
-- A linker warning about "built for newer version 17.5" is expected below a 17.5 target. It is not an integration error. Report it.
+- A linker warning about "built for newer version 17.5" means the app's target is below SanarKit's minimum, iOS 17.5. It is not an integration error. Report it.
 - `git diff` shows only what the integration needs: the package reference (`project.pbxproj` or `Package.swift`, plus `Package.resolved`) and the permission strings.
 - If you could not run `xcodebuild` (no Xcode, no simulator runtime), say exactly what you could not verify.

@@ -49,6 +49,7 @@ The checksum must be exactly this (24237 bytes). On Linux without `shasum`, use 
 
 This is the hash of the file at the `2.1.1` tag, computed when this reference was written (the same file is at the root of the default branch). If the hash differs, stop and tell the developer: the file may have been replaced since, or the download is damaged. Do not add a file you cannot match, and ask how to go on.
 
+- **What the size tells you.** The `.aar` is only about 23 KB, far too small to hold the content of the Sanar screens (dashboard, booking, appointments). So that content is evidently loaded at run time. This is inferred from the file size and is not confirmed by Sanar: what it loads, and from where, is **to confirm**. The consequence is practical: the screens cannot be checked without a real client ID and a network connection, and a build only shows that the library links.
 - **Another version.** This skill covers 2.1.1. To see whether a newer tag exists, run `git ls-remote --tags https://github.com/MarenTech/SanarKitAndroid`. If there is one, tell the developer and **ask before using it**: the file name carries the version, and the Gradle line must match it.
 - **Is the file ignored by Git?** Some projects ignore `*.aar`. Check with a real path:
 
@@ -129,13 +130,14 @@ The package is `com.sanarcare.sanarkit` and it also holds `SKEnvironment` and `U
 ## Verify
 
 - `./gradlew assembleDebug` from the project root (use `gradlew.bat` on Windows) finishes with `BUILD SUCCESSFUL`, with an `import com.sanarcare.sanarkit.SanarKit` in a file that compiles. If it fails only after your change, read `android-troubleshooting.md` before you change anything else.
-- The merged manifest has the permissions. After a build, search the merged manifest (the path can differ by Android Gradle Plugin version and variant; Android Studio's **Merged Manifest** tab shows it too):
+- The merged manifest has the permissions. After a build, search the merged manifest. Its path depends on the Android Gradle Plugin version (AGP 8.13 writes `app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml`, older versions write `.../merged_manifests/debug/AndroidManifest.xml`), so find it instead of typing the path (Android Studio's **Merged Manifest** tab shows it too). Replace `app` with the app module's folder:
 
   ```sh
-  grep -E "CAMERA|RECORD_AUDIO|INTERNET|ACCESS_COARSE_LOCATION" app/build/intermediates/merged_manifests/debug/AndroidManifest.xml
+  find app/build/intermediates/merged_manifests -name AndroidManifest.xml
+  find app/build/intermediates/merged_manifests -name AndroidManifest.xml -path "*/debug/*" -exec grep -E "CAMERA|RECORD_AUDIO|INTERNET|ACCESS_COARSE_LOCATION" {} +
   ```
 
-  It must list `CAMERA` and `RECORD_AUDIO` (yours) and `INTERNET` and `ACCESS_COARSE_LOCATION` (from the `.aar`).
+  The first command lists the manifests of every variant that was built. The second searches the debug one. It must list `CAMERA` and `RECORD_AUDIO` (yours) and `INTERNET` and `ACCESS_COARSE_LOCATION` (from the `.aar`).
 - `git status` shows only what the integration needs: the new `.aar` (untracked, or ignored, which you report), the module's build file, `AndroidManifest.xml`, and `gradle.properties` if you added the AndroidX flag.
 - `shasum -a 256` of the `.aar` printed the hash from "Get the `.aar`".
 - In the report, say that the `.aar` came from the `2.1.1` tag of `github.com/MarenTech/SanarKitAndroid`, so the developer knows where the binary is from.

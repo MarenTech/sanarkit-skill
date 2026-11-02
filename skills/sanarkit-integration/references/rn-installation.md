@@ -8,10 +8,10 @@ Everything here is for SDK 3.0.1. If the installed package disagrees with this f
 
 1. **App folder.** Work from the folder whose `package.json` lists `react-native`. In a monorepo that is the app's folder (for example `apps/mobile`), not the repository root. Run every command below from that folder.
 2. **React Native version.** Read `version` in `node_modules/react-native/package.json` (it may be hoisted to the monorepo root). If it is not installed yet, read the `react-native` entry in `package.json`.
-   - The package's `sanarkitCompatibility` table has an entry for every React Native version from 0.68 to 0.81, and the package declares `react-native >=0.68.0` as a peer dependency.
-   - The officially supported range for 3.0.1 is **to confirm**. If the app is outside 0.68 to 0.81, warn the developer and ask whether to go on.
-   - The SDK's migration guide pairs React Native 0.68 to 0.70 with SDK 2.1.x only. If the app is on 0.68 to 0.70, ask the developer to check with the Sanar team before you integrate.
-3. **New Architecture.** See the New Architecture section below. If it is on, stop and ask.
+   - SanarKit 3.0.1 supports React Native 0.71 to 0.81.
+   - On 0.68 to 0.70, the matching SDK is SanarKit 2.1.x, which this skill does not cover. Tell the developer, do not install 3.0.1, and ask how they want to go on. The package's `sanarkitCompatibility` table still has rows for 0.68 to 0.70 and its peer range is `react-native >=0.68.0`, so the install would not stop by itself.
+   - Outside 0.68 to 0.81, tell the developer that SanarKit 3.0.1 does not support that version, suggest they contact Sanar, and ask whether to go on.
+3. **New Architecture.** See the New Architecture section below. If it is on, tell the developer that SanarKit 3.0.1 targets the legacy architecture, and ask before you go on.
 4. **Node.js 16 or higher**, which `npx sanarkit-setup` needs.
 5. **Network access.** SanarKit depends on a small package, `sanar-dynamic-components`, which the package manager fetches from a public GitHub repository. The machine that runs the install needs `git` and access to github.com. If the install fails with a git error, see `rn-troubleshooting.md`.
 6. **A client ID** from the Sanar team, to connect a member. You do not need it to install.
@@ -73,23 +73,31 @@ git check-ignore -v ios android
 
 ## Install the SDK
 
+Install the SDK **in the same command as Reanimated**, with the version that the table in "Reanimated versions" below gives for the app's React Native. A plain `npm install @maren-sa/react-native-sanarkit` can fail with `ERESOLVE`: npm 7 and later installs missing peer dependencies itself, and for `react-native-reanimated` it picks the newest version that fits the SDK's broad peer range (`>=3.1.0`). That can be a Reanimated release (4.x) that needs a newer React Native than the app has. In the end-to-end runs on React Native 0.81.6 the plain install failed this way, and naming the table's version in the same command fixed it.
+
+1. Take the first `major.minor` of the app's `react-native` entry (`0.81.6` and `^0.81.0` both give `0.81`), find that row in "Reanimated versions", and use its `recommended` value (`~3.19.0` for 0.81).
+2. If the app **already lists** `react-native-reanimated`, leave it out of the command and leave its version alone (see "Reanimated versions" for when to report it).
+3. If the table has **no row** for the app's React Native, do not guess: a plain install may fail the same way. Tell the developer and ask which Reanimated version to install.
+
 From the app folder, with the app's own package manager:
 
 | Manager | Command |
 | --- | --- |
-| npm | `npm install @maren-sa/react-native-sanarkit` |
-| yarn | `yarn add @maren-sa/react-native-sanarkit` |
-| pnpm | `pnpm add @maren-sa/react-native-sanarkit` |
-| bun | `bun add @maren-sa/react-native-sanarkit` |
+| npm | `npm install @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+| yarn | `yarn add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+| pnpm | `pnpm add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+| bun | `bun add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+
+For example, on React Native 0.81: `npm install @maren-sa/react-native-sanarkit "react-native-reanimated@~3.19.0"`. Quote the `name@range` argument, because `~` and `^` can be expanded by the shell. Then run `npx sanarkit-setup` where the table above allows it. It finds Reanimated already installed and installs the other peers.
 
 In a monorepo, install into the app's workspace and not into the root. Either run the command in the app folder, or use the manager's workspace form from the project root:
 
 | Manager | Workspace form (from the project root) |
 | --- | --- |
-| npm | `npm install @maren-sa/react-native-sanarkit --workspace <app folder or name>` |
-| yarn | `yarn workspace <app name> add @maren-sa/react-native-sanarkit` |
-| pnpm | `pnpm --filter <app name> add @maren-sa/react-native-sanarkit` |
-| bun | run `bun add @maren-sa/react-native-sanarkit` in the app folder |
+| npm | `npm install @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>" --workspace <app folder or name>` |
+| yarn | `yarn workspace <app name> add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+| pnpm | `pnpm --filter <app name> add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` |
+| bun | run `bun add @maren-sa/react-native-sanarkit "react-native-reanimated@<recommended>"` in the app folder |
 
 After the install, `git diff --stat` must show the app's `package.json` changed. If the root `package.json` changed instead, undo that change and ask.
 
@@ -106,7 +114,7 @@ If it is not 3.0.1, tell the developer. A newer version is fine, but check each 
 Problems at this step:
 
 - **An authentication or not-found error for the `@maren-sa` scope.** The SDK's own guide says the scope is private and needs an npm token from Sanar. An anonymous lookup currently succeeds, so whether a token is needed is **to confirm**. If the install fails like this, stop and ask the developer to get access from the Sanar team. Never write a token into a file that Git tracks.
-- **A peer dependency conflict** (for example `react-native-svg`, which SanarKit declares as `^12.1.0`). Read which package the error names. Never add `--force`, `--legacy-peer-deps` or overrides without asking. Which `react-native-svg` version to use on newer React Native versions is to confirm.
+- **A peer dependency conflict (`ERESOLVE` on npm).** Read which package the error names. If it is `react-native-reanimated`, the install was missing the Reanimated version above: run the combined command. For another package, see `rn-troubleshooting.md` (`react-native-svg`, which SanarKit declares as `^12.1.0`, is the known case). **Never use `--force` or `--legacy-peer-deps`.** Add an `overrides` entry (or another manager's override) only after you have asked the developer.
 
 ## Install the peer dependencies
 
@@ -136,8 +144,8 @@ Do not run `npx sanarkit-setup`. Install the peers yourself with the app's manag
 2. **Remove the deprecated `sanar-rtc`** if `dependencies` or `devDependencies` in the app's `package.json` list it. SanarKit now uses `react-native-agora` for video.
 3. **Install each missing peer** at the range the SDK declares. Skip `react` and `react-native`. "Missing" means the package name is in neither `dependencies` nor `devDependencies` of the app's `package.json`. A peer that is already there is left alone, even if its version differs from the range.
    - Quote every `name@range` argument. A range such as `>=8.0.0` is a redirect in the shell if it is not quoted.
-   - **Reanimated** is the exception. Do not use its broad peer range. Take the first `major.minor` in the app's `react-native` entry (`0.76.5` and `^0.76.0` both give `0.76`), find that row in the Reanimated table below, and install its `recommended` version. If the entry has no version (for example `*`), use the installed React Native version. If the table has no row for it, use the peer range `>=3.1.0` and tell the developer.
-4. **Pods, on macOS only, and only if you removed or installed anything:** `cd ios && pod install`. Use the app's usual command if it differs (for example `bundle exec pod install` when the app has a `Gemfile`). Skip it when nothing changed. Skip it when there is no `ios/` folder, and ask about the Expo prebuild instead.
+   - **Reanimated** is the exception. Do not use its broad peer range. Take the first `major.minor` in the app's `react-native` entry (`0.76.5` and `^0.76.0` both give `0.76`), find that row in the Reanimated table below, and install its `recommended` version. If the entry has no version (for example `*`), use the installed React Native version. If the table has no row for it, do not guess: the broad peer range can resolve to a Reanimated release that does not fit the app (see "Install the SDK" above). Tell the developer and ask which Reanimated version to install.
+4. **Pods, on macOS only, and only if you removed or installed anything:** `cd ios && pod install`. Use the app's usual command if it differs (for example `bundle exec pod install` when the app has a `Gemfile`). If Bundler or the `Gemfile` cannot run (for example an old system Ruby), plain `pod install` is acceptable. If the app has the New Architecture off, put `RCT_NEW_ARCH_ENABLED=0` in front of the command (see "New Architecture"). Skip it when nothing changed. Skip it when there is no `ios/` folder, and ask about the Expo prebuild instead.
 5. **Compare the peers the app already had** with the ranges below. Report any mismatch, and do not change an existing peer without asking.
 6. Run `git status` and check that no second lockfile appeared.
 
@@ -152,14 +160,20 @@ In a workspace, run these in the app's folder, or use the workspace form from th
 
 ### What `sanarkit-setup` changes
 
-It runs package-manager and CocoaPods commands only. It does not edit any other file. In order, it:
+The script itself runs package-manager and CocoaPods commands only. It edits no other file, but those commands change files as a side effect (see the list below). In order, it:
 
 1. Removes `sanar-rtc` if the app lists it (`npm uninstall sanar-rtc`, or `yarn remove sanar-rtc` when `yarn.lock` is in the folder).
 2. Reads the SDK's `peerDependencies`. For each one except `react` and `react-native` that the app does not list, it runs `npm install --save "name@range"`, or `yarn add "name@range"` when `yarn.lock` is in the folder. It prints `already installed` for the ones the app has.
 3. For `react-native-reanimated` it picks the version from `sanarkitCompatibility`, using the first `major.minor` of the app's `react-native` entry. With no entry for that version, or no version found, it prints a warning and installs the peer range `>=3.1.0`.
-4. On macOS, if step 1 or 2 changed anything, it runs `cd ios && pod install`. Otherwise it prints that it is skipping the pods.
+4. On macOS, if step 1 or 2 changed anything, it runs `cd ios && pod install`. Otherwise it prints that it is skipping the pods. That `pod install` runs with the environment of the setup command, so for an app with the New Architecture off, start the setup command with the variable: `RCT_NEW_ARCH_ENABLED=0 npx sanarkit-setup` (see "New Architecture").
 
-So after it runs, the changed files are `package.json`, the lockfile, and (on macOS) `ios/Podfile.lock` and `ios/Pods`. It does **not** touch `Info.plist`, `AndroidManifest.xml`, the `Podfile`, Gradle files or Babel config. Add the permissions yourself (`rn-permissions.md` has them). Run it again whenever you upgrade SanarKit, to pick up new or changed peers.
+**Expected changes.** After it runs, `git status` shows these files. They are normal side effects of the commands, so report them and do not revert them:
+
+- `package.json` and the lockfile. npm may also re-sort the keys of `dependencies` (and the other sections), so the diff can show lines that you did not add.
+- On macOS, `ios/Podfile.lock` and `ios/Pods`.
+- `ios/<App>/PrivacyInfo.xcprivacy`. CocoaPods may rewrite it during `pod install` (it aggregates the privacy manifests of the pods).
+
+It does **not** touch `Info.plist`, `AndroidManifest.xml`, the `Podfile`, Gradle files or Babel config. Add the permissions yourself (`rn-permissions.md` has them). Run it again whenever you upgrade SanarKit, to pick up new or changed peers.
 
 ## Peer dependencies (SDK 3.0.1)
 
@@ -201,16 +215,32 @@ If the app already has Reanimated, leave its version alone even when it differs.
 
 ## New Architecture
 
-Whether SanarKit 3.0.1 supports React Native's New Architecture is **to confirm**. The `sanarkitCompatibility` table describes its versions as "by host React Native minor (Paper)", which points at the old architecture, but that is a hint and not a confirmation.
+SanarKit 3.0.1 targets React Native's legacy architecture (the `sanarkitCompatibility` table describes its versions as "by host React Native minor (Paper)"). If the app uses the New Architecture, the developer should contact Sanar before they integrate.
+
+**If the developer decides to go on**, the steps are the same. In the end-to-end runs, with the New Architecture on, a React Native 0.81.6 app with SanarKit 3.0.1 built on iOS and Android, and started on the iOS simulator (iOS 26.5). Bridgeless and Fabric were confirmed active, with no red box, crash or TurboModule error. `connect` reached Sanar's server, which rejected the fake test client ID ("Invalid Authorisation"), so the request made the round trip. The two workarounds in `rn-troubleshooting.md` (the Podfile deployment target and `react-native-svg` 15.16.0 through `overrides`) were needed with the old architecture too, so they are not New Architecture issues.
+
+Those runs did not check any SanarKit screen under Fabric, Android at run time, or a successful `connect` with a real client ID. Do not tell the developer that SanarKit supports the New Architecture.
 
 Check whether the app has the New Architecture on:
 
 - **Android:** `newArchEnabled` in `android/gradle.properties`.
-- **iOS:** the `RCT_NEW_ARCH_ENABLED` setting, in the `Podfile` or in the environment that runs `pod install`.
+- **iOS:** the `RCT_NEW_ARCH_ENABLED` setting, in the `Podfile` or in the environment that runs `pod install`, and also `RCTNewArchEnabled` in `ios/<App>/Info.plist` (`<true/>` or `<false/>`). The end-to-end apps on React Native 0.81 had the key. Check both places, because the environment variable is not stored in the project.
 - **Expo:** `newArchEnabled` under `expo` in `app.json` (or `app.config.js` or `app.config.ts`).
 - **No explicit setting:** React Native 0.76 and later turn it on by default, so a missing setting does not mean it is off. Recent Expo SDKs (React Native 0.76 and later) also enable it by default. This default is general React Native knowledge, so it is to confirm for the app's versions.
 
-If it is on, or if you cannot tell, **stop and ask the developer**. Suggest that they check with the Sanar team. Do not turn `newArchEnabled` off yourself.
+If it is on, or if you cannot tell, **tell the developer and ask before you go on**. Tell them that SanarKit 3.0.1 targets the legacy architecture and that they should contact Sanar before they integrate. Continue only when they say so. Never turn `newArchEnabled` off yourself.
+
+### `pod install` when the New Architecture is off
+
+If the app has the New Architecture explicitly off, every `pod install` needs `RCT_NEW_ARCH_ENABLED=0` in front of it, so the pods match the app's setting:
+
+```sh
+cd ios && RCT_NEW_ARCH_ENABLED=0 pod install
+```
+
+That includes the `pod install` that `npx sanarkit-setup` runs on its own. The script inherits the environment of the command that starts it, so start it with the variable too: `RCT_NEW_ARCH_ENABLED=0 npx sanarkit-setup`. In the end-to-end run on React Native 0.81.6 with the New Architecture off, the pods were installed with the variable set, and CocoaPods logged "Configuring the target with the Legacy Architecture". If the app has the New Architecture on, run `pod install` as usual.
+
+If the app has a `Gemfile` the usual command is `bundle exec pod install`, with the variable in front when it applies. If Bundler or the `Gemfile` cannot run (for example an old system Ruby), plain `pod install` is acceptable.
 
 ## After the install
 
@@ -218,3 +248,5 @@ If it is on, or if you cannot tell, **stop and ask the developer**. Suggest that
 2. Add the camera and microphone permissions. `rn-permissions.md` has the exact entries.
 3. Rebuild both native projects, because a JavaScript reload is not enough.
 4. Do not run `npx sanarkit-setup` again unless the SDK is upgraded.
+5. If the app has tests, run them once. A Jest test that imports `App` fails as soon as `App.tsx` imports the SDK: tell the developer, and do not add mocks unless they ask. `rn-troubleshooting.md` has the details and a minimal mock.
+6. A build with Xcode 27 or React Native 0.81 can fail in `fmt` (a fresh React Native 0.81 app, before SanarKit), in `react-native-device-info` or in `react-native-svg`. `rn-troubleshooting.md` has all three entries. They change the app's `Podfile` or dependency versions, so ask first.

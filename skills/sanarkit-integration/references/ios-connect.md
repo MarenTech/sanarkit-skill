@@ -12,6 +12,7 @@ Ask the developer these questions. Do not guess the answers.
 2. **How does the app tell its environments apart?** The default below uses the Debug configuration for `development` and the Release configuration for `production`. If the app has other configurations (Staging, Beta), each one needs its own client ID and environment: ask.
 3. **How do the signed-in user's fields map to the SDK's member fields?** See "Member details".
 4. **Where does the app know that a user has signed in or out?** The session below connects and disconnects there (`signIn` and `signOut`).
+5. **How do new files get into the Xcode project?** This integration adds Swift files (the config reader, the session, the mapping, the entry point) and an `.xcconfig` file. If the project uses synchronized folders (Xcode 16 and later: `grep -c PBXFileSystemSynchronizedRootGroup <App>.xcodeproj/project.pbxproj` prints more than 0, general Xcode behavior and not from the Sanar docs), new files in those folders are picked up by themselves. If the project **lists its files explicitly** in `project.pbxproj`, every new Swift file needs an entry there, and the `.xcconfig` has to be added and attached to the target. Ask the developer once, for all of it: you can edit `project.pbxproj` (only if they say yes: it is easy to corrupt, so check the result with a build and read the diff), or they add the files in Xcode.
 
 Never ask the developer to paste the client ID into the chat. If they paste it anyway, write it only into the git-ignored config file, and never repeat it in your output.
 
@@ -39,7 +40,13 @@ Use it. Make the value reach `Info.plist` through a build variable (the pattern 
 
    The `[config=Release]` lines override the first two in the Release configuration, so a build never pairs a production client ID with the development environment or the reverse. If the Release configuration has another name, use that name.
 
-2. Create `<path>/Sanar.xcconfig.example` with the same content. This one **is** committed, so a fresh clone knows what to create (`cp Sanar.xcconfig.example Sanar.xcconfig`, in that folder).
+2. Create `<path>/Sanar.xcconfig.example` with the same placeholders, but **its own first line**. The first line of the real file ("Do not commit this file") is wrong for the example, because the example **is** committed. Use this header instead:
+
+   ```text
+   // Copy to Sanar.xcconfig and fill in; this example is committed and holds placeholders only.
+   ```
+
+   Keep the rest of the content the same. A fresh clone then knows what to create (`cp Sanar.xcconfig.example Sanar.xcconfig`, in that folder).
 
 3. Add the real file to `.gitignore`, at the root of the repository or of the app (check which `.gitignore` files exist). A name without a slash matches in any folder:
 
@@ -58,18 +65,28 @@ Use it. Make the value reach `Info.plist` through a build variable (the pattern 
 
    `test -f` prints `MISSING` only if the file is absent (it is silent when the file exists); the two `git` commands print on every outcome, so an empty result from them cannot pass by accident. You want: no `MISSING`, a `.gitignore` rule printed by `git check-ignore`, and `not tracked`. `not tracked` only counts once `test -f` has confirmed that the path is real, because a wrong path makes `git ls-files --error-unmatch` fail in the same way. `MISSING` means the path is wrong or the file does not exist yet: fix that and run the checks again. `NOT IGNORED` means you must fix the `.gitignore` rule and check again. `TRACKED` means the file is already in Git (Git then also reports `NOT IGNORED`, because it does not apply ignore rules to tracked files): stop and tell the developer, and do not rewrite Git history or untrack files without asking. Also check the example file: `git check-ignore -v <path>/Sanar.xcconfig.example || echo "not ignored"` must print `not ignored`.
 
-5. Make the build use it. Setting a configuration file for a build configuration is a change to the project file, so **ask the developer to do it in Xcode** (the project's **Info** tab, under **Configurations**: choose `Sanar.xcconfig` for each configuration of the app target), or ask permission to edit the project file. The file has to be added to the Xcode project first, or it does not appear in that list. For a generated project (XcodeGen or Tuist), set it in that tool's file instead.
+5. Make the build use it. Setting a configuration file for a build configuration is a change to the project file, so **ask the developer to do it in Xcode** (the project's **Info** tab, under **Configurations**), or ask permission to edit the project file (see question 5 above). For a generated project (XcodeGen or Tuist), set it in that tool's file instead.
 
-   **If a configuration already has a config file, do not replace it**: choosing `Sanar.xcconfig` there would drop the existing settings. What to do depends on who owns that file:
+   **Do not choose `Sanar.xcconfig` itself as the base configuration.** It is git-ignored, so a fresh clone and a CI machine do not have it, and a base configuration file that does not exist fails the build: `xcodebuild` exits with 65 and reports `Unable to open base configuration reference file` (seen in the end-to-end run, where `Sanar.xcconfig` was the base configuration). Use a committed wrapper file instead. Create `<path>/SanarBase.xcconfig` next to `Sanar.xcconfig`:
 
-   - **The app's own `.xcconfig`:** add this line to it, with a path relative to it:
+   ```text
+   // Committed. Includes the git-ignored Sanar.xcconfig when it exists, so a build without it still
+   // succeeds, with empty keys.
+   #include? "Sanar.xcconfig"
+   ```
+
+   Add `SanarBase.xcconfig` to the Xcode project, and choose it (not `Sanar.xcconfig`) as the base configuration for each configuration of the app target (Debug and Release, and any other the app has). The path in the include is relative to the wrapper. The question mark makes the include optional. The wrapper must be committed: check that no `.gitignore` rule swallows it with `git check-ignore -v <path>/SanarBase.xcconfig || echo "not ignored"`, which must print `not ignored`. The rule `Sanar.xcconfig` from step 3 matches only that exact name.
+
+   **If a configuration already has a config file, do not replace it**: choosing a new one there would drop the existing settings. What to do depends on who owns that file:
+
+   - **The app's own `.xcconfig`** (its base configuration already): no wrapper is needed. Add this line to it, with a path relative to it:
 
      ```text
      #include? "Sanar.xcconfig"
      ```
 
      The question mark makes the include optional, so a fresh clone without `Sanar.xcconfig` still builds (checked with `xcodebuild -showBuildSettings`; a missing optional file is ignored).
-   - **CocoaPods' generated file** (`Pods-<App>.debug.xcconfig` and `Pods-<App>.release.xcconfig`, under `Pods/Target Support Files/`): **never edit anything under `Pods/`.** `pod install` writes those files again, the include disappears, and `SanarConfig.clientID` becomes `nil` without any error. Instead create an app-owned `.xcconfig` for each configuration (for example `App.Debug.xcconfig`) that includes both files, and make it the configuration's base configuration:
+   - **CocoaPods' generated file** (`Pods-<App>.debug.xcconfig` and `Pods-<App>.release.xcconfig`, under `Pods/Target Support Files/`): **never edit anything under `Pods/`.** `pod install` writes those files again, the include disappears, and `SanarConfig.clientID` becomes `nil` without any error. Instead create an app-owned `.xcconfig` for each configuration (for example `App.Debug.xcconfig`) that includes both files, and make it the configuration's base configuration. It plays the role of the wrapper above:
 
      ```text
      #include "Pods/Target Support Files/Pods-<App>/Pods-<App>.debug.xcconfig"
@@ -117,7 +134,12 @@ Tell the developer to replace both placeholders. To check that they are still un
 
 ### CI and fresh clones
 
-`Sanar.xcconfig` is not in Git, so a fresh clone and a CI machine do not have it. The `#include?` and the config-file setting are optional or empty without it, so **the build still succeeds and ships with empty keys**: the app then never calls `connect`. CI must create the file from its secret store before the build step (one value per environment, never echoed into the build log), for example by writing `<path>/Sanar.xcconfig` from two secret variables. A developer on a fresh clone copies `Sanar.xcconfig.example` and fills it in. Tell the developer about this in the report.
+`Sanar.xcconfig` is not in Git, so a fresh clone and a CI machine do not have it. What happens next depends on how it is wired:
+
+- **Through the committed wrapper (or the app's own xcconfig) with `#include?`:** the build still succeeds and ships with empty keys, and the app then never calls `connect`.
+- **With `Sanar.xcconfig` itself as the base configuration:** the build **fails** (exit 65, `Unable to open base configuration reference file`). Change the base configuration to the wrapper.
+
+CI must create the file from its secret store before the build step (one value per environment, never echoed into the build log), for example by writing `<path>/Sanar.xcconfig` from two secret variables. A developer on a fresh clone copies `Sanar.xcconfig.example` and fills it in. Tell the developer about this in the report.
 
 ## Set the environment
 
@@ -192,7 +214,7 @@ Rules:
 - **`ipc` and `isDependent`.** The README gained them on 2025-09-02, after the newest tag in the repository (2.1.1, 2025-08-25). Which SDK version first accepts them is **to confirm**, so check them against the installed version before you send them, and ask the Sanar team if the app is on an older tag.
 - Do not log the member dictionary.
 
-The shape, with **demo data** only. Do not copy these values into the app:
+The shape, with **demo data** only. Never copy these values in as a real member's data: map the app's own user fields. If the app has its own placeholder or test user that happens to hold the same values, that is the app's data and needs no warning:
 
 ```swift
 func demoClientInfo() -> [String: Any] {
@@ -378,7 +400,7 @@ What a Sanar view shows when there is no connected session, or when the session 
 
 ## Verify
 
-- **Git.** `<path>/Sanar.xcconfig` passes the three checks in step 4 (no `MISSING`, a rule from `git check-ignore`, `not tracked`), and `git diff` and `git status` show no client ID in any tracked or untracked file you added except the git-ignored one.
+- **Git.** `<path>/Sanar.xcconfig` passes the three checks in step 4 (no `MISSING`, a rule from `git check-ignore`, `not tracked`), `<path>/SanarBase.xcconfig` prints `not ignored`, and `git diff` and `git status` show no client ID in any tracked or untracked file you added except the git-ignored one.
 - **The build.** The app builds with the placeholders in place (`xcodebuild -scheme <Scheme> -configuration Debug -destination 'generic/platform=iOS Simulator' build`).
 - **The config reaches the app.** A placeholder makes `SanarConfig.clientID` `nil` whether or not the key reached the built `Info.plist`, so a `nil` client ID tells you nothing about the wiring. Read the built app's `Info.plist` instead. Find the built app, then read the **environment** (not a secret) and check that the client ID key is **present** without printing it. Use the same `-configuration` for both commands:
 

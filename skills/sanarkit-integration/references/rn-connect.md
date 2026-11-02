@@ -38,7 +38,13 @@ In the steps below, `<path>` is the folder where the config file really lives, f
    } as const;
    ```
 
-2. Create `<path>/sanar.config.example.ts` with the same content. This one **is** committed, so a fresh clone knows what to create (`cp <path>/sanar.config.example.ts <path>/sanar.config.ts`).
+2. Create `<path>/sanar.config.example.ts` with the same placeholders, but **its own first line**. The first line of the real file ("Do not commit this file") is wrong for the example, because the example **is** committed. Use this header instead:
+
+   ```ts
+   // Copy to sanar.config.ts and fill in; this example is committed and holds placeholders only.
+   ```
+
+   Keep the rest of the content (the second comment line and the `SANAR_CONFIG` object) the same. A fresh clone then knows what to create (`cp <path>/sanar.config.example.ts <path>/sanar.config.ts`).
 
 3. Add the real file to `.gitignore`, at the root of the repository or of the app (check which `.gitignore` files exist). A name without a slash matches the file in any folder, and it does not match the example file:
 
@@ -47,25 +53,34 @@ In the steps below, `<path>` is the folder where the config file really lives, f
    sanar.config.ts
    ```
 
-4. Confirm that it is ignored and not tracked. Run the commands from the repository, with the real path:
+4. Confirm that the file exists, is ignored and is not tracked. Run the commands from the repository, with the real path:
 
    ```sh
-   ls <path>/sanar.config.ts
-   git check-ignore -v <path>/sanar.config.ts
-   git ls-files <path>/sanar.config.ts
-   git check-ignore -v <path>/sanar.config.example.ts
+   test -f <path>/sanar.config.ts || echo "MISSING: create it first (step 1)"
+   git check-ignore -v <path>/sanar.config.ts || echo "NOT IGNORED: add it to .gitignore"
+   git ls-files --error-unmatch -- <path>/sanar.config.ts 2>/dev/null && echo "TRACKED: stop and tell the developer" || echo "not tracked"
+   git check-ignore -v <path>/sanar.config.example.ts || echo "not ignored"
    ```
 
-   - `ls` must print the path. If it does not, the path is wrong, and the two `git` checks below prove nothing, so fix the path first.
-   - `git check-ignore -v` must print the `.gitignore` rule that matches. No output means the file is not ignored: fix the rule.
-   - `git ls-files` must print nothing. An empty answer only counts when `ls` showed that the path is real. If it prints the file name, the file is already tracked: stop and tell the developer, and do not rewrite Git history or untrack files without asking.
-   - The last command must print nothing, because the example file is meant to be committed.
+   - `test -f` prints `MISSING` only if the file is absent (it is silent when the file exists). `MISSING` means the path is wrong or the file does not exist yet: fix that first, because the two `git` checks prove nothing for a path that is not real.
+   - `git check-ignore -v` must print the `.gitignore` rule that matches. `NOT IGNORED` means the file is not ignored: fix the rule and check again.
+   - `git ls-files --error-unmatch` fails for a file that Git does not track, so the last `||` prints `not tracked`. You want `not tracked`, and it only counts once `test -f` has confirmed that the path is real, because a wrong path fails the same way. `TRACKED` means the file is already in Git (Git then also reports `NOT IGNORED`, because it does not apply ignore rules to tracked files): stop and tell the developer, and do not rewrite Git history or untrack files without asking.
+   - The last command must print `not ignored`, because the example file is meant to be committed.
 
 5. Tell the developer to replace both placeholders. To check that they are still unfilled without printing the file, use `grep -c "CLIENT_ID from config" <path>/sanar.config.ts`, which prints only a count.
 
 Leave the placeholders in place until the developer has filled them in. The app builds with them, but `connect` is refused or fails, `connected` stays false, and no Sanar component opens. Say that in the report.
 
-Two things the developer should know. The file holds the client IDs of both environments, so both IDs end up in every build that includes it. That is acceptable, because the client ID ships inside the app anyway, but it should be a conscious choice. And because the file is git-ignored, a CI checkout does not have it: the CI job must create `<path>/sanar.config.ts` from its own secret store before it builds.
+The file holds the client IDs of both environments, so both IDs end up in every build that includes it. That is acceptable, because the client ID ships inside the app anyway, but it should be a conscious choice.
+
+### Fresh clone and CI
+
+`<path>/sanar.config.ts` is git-ignored, so **a fresh clone and a CI checkout do not have it**, and everything that imports it fails until it exists: `tsc`, Jest, Metro (the bundle step) and every Release build (a Release build bundles the JavaScript). The failure is typically a missing-module error for `./sanar.config`, not a Sanar error. To fix it:
+
+- **A developer on a fresh clone** runs `cp <path>/sanar.config.example.ts <path>/sanar.config.ts` and fills in the placeholders. The app then builds, and `connect` is refused until the real client IDs are in.
+- **CI** must create `<path>/sanar.config.ts` from its own secret store before the first step that compiles, tests or bundles the app. Write the file from secret variables, one per environment, and never echo the values into the build log. Without the real values, the example file's placeholders are enough for `tsc`, Jest and a build, but not for `connect`.
+
+Tell the developer about this in the report.
 
 ## Set the environment
 
@@ -131,7 +146,7 @@ Rules:
 - Send all eleven fields. Which fields Sanar's backend requires is **to confirm**.
 - Do not log the member object. It holds personal data.
 
-The shape, with **demo data** only. Do not copy these values into the app:
+The shape, with **demo data** only. Never copy these values in as a real member's data: map the app's own user fields. If the app has its own placeholder or test user that happens to hold the same values, that is the app's data and needs no warning:
 
 ```ts
 const demoMember = {
@@ -313,6 +328,6 @@ SanarKit.disconnect();
 
 ## Verify
 
-- `<path>/sanar.config.ts` exists, is ignored and is untracked (the checks above, run with the real path), and `git diff` and `git status` show no client ID in any tracked or untracked file you added except the git-ignored one.
+- `<path>/sanar.config.ts` exists, is ignored and is untracked (the checks above, run with the real path: no `MISSING`, a rule from `git check-ignore`, and `not tracked`), and `git diff` and `git status` show no client ID in any tracked or untracked file you added except the git-ignored one.
 - The app builds and starts with the placeholders in place. `connect` is refused (`status: false`) or fails (the promise rejects, for example when the answer is not JSON). Either way `connected` stays false and the provider shows an error. This shows the provider reports a failed connect; the credentials need a real client ID to be checked.
 - With a real client ID for the right environment, `connect` resolves `{ status: true }` and `connected` becomes `true`. Only the developer can check this. If you cannot, say that you did not verify it.
