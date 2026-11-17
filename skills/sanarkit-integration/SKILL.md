@@ -1,15 +1,25 @@
 ---
 name: sanarkit-integration
-description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. Use when the developer asks to add, integrate, set up or check Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
+description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, and moves a misplaced SanarRTC or other Sanar component to where it works. Use when the developer asks to add, integrate, set up, check, diagnose, debug or fix Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
-  sdk-versions: "react-native 3.0.1; ios 2.1.1; android 2.1.1"
+  sdk-versions: "react-native 3.1.0; ios 2.1.1; android 2.1.1"
 ---
 
 # SanarKit integration
 
 Add a SanarKit SDK to a developer's app and put one Sanar component on screen. This skill covers three separate SDKs: React Native, iOS and Android. They are different products with different APIs, so never carry code or names from one SDK over to another.
 
-Work through the nine steps below in order. The rules in the Rules section below apply to every step, so read that section first. The reference files hold the exact commands, code and API tables. Read only the references for the SDK you detected, and only when a step points you to them (they are listed in the Reference files table at the end).
+The skill has three tasks. Pick the one the developer asked for:
+
+| The developer wants | Do this |
+| --- | --- |
+| SanarKit added to the app, or another Sanar component added | The Workflow below, steps 1 to 10 |
+| An existing integration checked, diagnosed or debugged, or reports a problem such as "the ringer shows but the call never opens" | "Diagnose an existing integration" below. It changes nothing until the developer has seen the report |
+| A misplaced `SanarRTC` or other Sanar component fixed | "Fix a misplaced component" below |
+
+If SanarKit is already installed and the developer did not say which they want, ask. Do not start an integration over an existing one.
+
+For an integration, work through the ten steps below in order. The rules in the Rules section below apply to every task and every step, so read that section first. The reference files hold the exact commands, code and API tables. Read only the references for the SDK you detected, and only when a step points you to them (they are listed in the Reference files table at the end).
 
 ## Workflow
 
@@ -44,8 +54,8 @@ Compare it with the versions in the Versions covered section.
 
 React Native pre-flight, before you install anything:
 
-- Read the installed `react-native` version. SanarKit 3.0.1 supports React Native 0.71 to 0.81. On 0.68 to 0.70 the matching SDK is SanarKit 2.1.x, which this skill does not cover: tell the developer, do not install 3.0.1, and ask how they want to go on. Outside 0.68 to 0.81, tell the developer that SanarKit 3.0.1 does not support that version, suggest they contact Sanar, and ask whether to continue.
-- If the New Architecture is on, **tell the developer and ask before you go on**. SanarKit 3.0.1 targets React Native's legacy architecture, so tell them to contact Sanar before they integrate. Do not say that SanarKit supports the New Architecture. Never turn `newArchEnabled` off yourself. React Native 0.76 and later turns it on by default, so also check for an explicit setting. `references/rn-installation.md` says where to look.
+- Read the installed `react-native` version. SanarKit 3.1.0 supports React Native 0.71 to 0.81. On 0.68 to 0.70 the matching SDK is SanarKit 2.1.x, which this skill does not cover: tell the developer, do not install 3.1.0, and ask how they want to go on. Outside 0.68 to 0.81, tell the developer that SanarKit 3.1.0 does not support that version, suggest they contact Sanar, and ask whether to continue.
+- If the New Architecture is on, **tell the developer and ask before you go on**. SanarKit 3.1.0 targets React Native's legacy architecture, so tell them to contact Sanar before they integrate. Do not say that SanarKit supports the New Architecture. Never turn `newArchEnabled` off yourself. React Native 0.76 and later turns it on by default, so also check for an explicit setting. `references/rn-installation.md` says where to look.
 
 ### 3. Install
 
@@ -99,7 +109,7 @@ Then read that component's reference from the table at the end.
 
 Add it to the app's navigation. Follow the navigation library, the code style and the folder layout the app already uses. Do not introduce a new navigation library. Put the entry point where the developer asked (for example the home screen), and keep the change small.
 
-- **React Native:** every component except `SanarRTC` takes `enable` and `onEndFlow`. Keep it closed until `connect` has succeeded, and close it in `onEndFlow`. For `SKDashboard`, `SKAppointments` and `ITCBooking`, `navigationOption` defaults to `false`, so leaving it out hides the navigation bar. Pass `navigationOption={true}` where the developer wants Sanar's bar. `SKService` has no `navigationOption`. For `SKConsultation`, the SDK does not read `navigationOption`, so do not rely on it until the Sanar team confirms what it does. `SanarRTC` renders once at the app root, and with `enable={false}` it calls `SanarKit.disconnect()`, so tie its `enable` to your own connected flag.
+- **React Native:** every component except `SanarRTC` takes `enable` and `onEndFlow`. Keep it closed until `connect` has succeeded, and close it in `onEndFlow`. For `SKDashboard`, `SKAppointments` and `ITCBooking`, `navigationOption` defaults to `false`, so leaving it out hides the navigation bar. Pass `navigationOption={true}` where the developer wants Sanar's bar. `SKService` has no `navigationOption`. For `SKConsultation`, the SDK does not read `navigationOption`, so do not rely on it until the Sanar team confirms what it does. `SanarRTC` renders once at the app root, after the app's content and outside every screen, conditional branch and padded container. With `enable={false}` it calls `SanarKit.disconnect()`, so tie its `enable` to your own connected flag. Pass `onCallStatusChange` and `onError`, so a call that fails (status `CALL_FAILED`) is reported and not lost.
 - **iOS:** each view is a SwiftUI view that takes an `isNavigationActive` `Bool` binding and is shown from one of the app's own screens inside a navigation container. `NavigationStack` needs an iOS 16 deployment target. Do not raise the deployment target for it: the view's reference has the variant for older targets, and also shows the UIKit hosting pattern. If the project lists its files explicitly in `project.pbxproj` (it has no synchronized folders), every new Swift file needs a project-file entry and the xcconfig has to be attached to the target: ask whether you may edit `project.pbxproj` or whether the developer adds the files in Xcode.
 - **Android:** the `goto*` methods need an Activity context. Call them on the instance that connected. Each one starts its own full-screen Activity on top of the app, so it cannot be embedded in a screen, a tab or a Fragment. If the developer asks to "show the dashboard on the home screen", say so and add a button on that screen that calls `gotoDashboardView()`.
 
@@ -107,7 +117,17 @@ The consultation entries take extra parameters. React Native `SKConsultation` ne
 
 For a consultation, always use `SKConsultation` on React Native.
 
-### 8. Build
+### 8. Check the integration (React Native)
+
+From SanarKit 3.1.0 the package has a read-only check of the project. Run it from the app root, with any package manager, after steps 3 to 7 and before the build:
+
+```sh
+npx sanarkit-setup --doctor
+```
+
+It installs and changes nothing. It checks the peer dependency versions, the `Info.plist` keys, the `Podfile` permission setup and the installed pods, the Android permissions, the New Architecture setting, and where `<SanarRTC />` is rendered. It exits with code 1 when it finds an error. Fix the errors and warnings that your integration caused, and report the rest to the developer with the fix it prints. Do not change anything outside the integration because of it without asking. Two findings can be expected: a warning that `SanarRTC` is not rendered, when the developer did not ask for video calls, and a warning about a peer version that you and the developer chose on purpose. `references/rn-troubleshooting.md` describes the output, and the run-time checks (`SanarKit.setDebug`, `SanarKit.diagnose()`) for a running app. iOS and Android have no such command: skip this step.
+
+### 9. Build
 
 - **React Native:** run `pod install` if native dependencies changed (with `RCT_NEW_ARCH_ENABLED=0` in front when the app has the New Architecture off, and plain `pod install` is fine if `bundle exec` or the `Gemfile` cannot run), then build the platforms the app targets with the app's own scripts (`npx react-native run-ios` and `run-android` in a bare project, the development build in an Expo project).
 - **iOS:** `xcodebuild` with the app's scheme, for example against the iOS Simulator.
@@ -115,18 +135,44 @@ For a consultation, always use `SKConsultation` on React Native.
 
 Fix the errors your integration caused. Do not fix unrelated failures that were already there; tell the developer about them. If you cannot run a build (no Xcode, no Android SDK, no simulator), say exactly what you could not verify. If a build fails, read the troubleshooting reference for the SDK before you change anything: `references/rn-troubleshooting.md`, `references/ios-troubleshooting.md` or `references/android-troubleshooting.md`.
 
-### 9. Report
+### 10. Report
 
 Give the developer a short report:
 
 - the files you changed or added (from `git status`), and confirmation that no client ID or other credential is in any tracked file or in your output
 - the values they still have to fill in, such as the client ID in the git-ignored file, the user-field mapping and the permission wording
+- for React Native: the result of `npx sanarkit-setup --doctor`, with every finding you did not fix
 - what you could not verify, such as a build you could not run, or that `connect` succeeds, which needs a real client ID for the right environment
 - for React Native: that a fresh clone and CI must create the git-ignored `sanar.config.ts` from the example before `tsc`, Jest, Metro or a Release build can run, and that an existing Jest test that imports the SDK now fails because native modules load at import (do not add mocks unless the developer asks; `references/rn-troubleshooting.md` has a minimal one)
 - any place where the docs and the installed package disagreed, and any SDK requirement the app does not meet, such as an iOS deployment target below 17.5 or a React Native version outside 0.71 to 0.81
 - next steps: fill in the config, run the app and confirm `connect` succeeds, then work through the Go-live checklist before release (the Go-live checklist page in the Sanar developer docs, under Get started, path `/docs/get-started/go-live`)
 
 Leave the changes uncommitted for the developer to review.
+
+## Diagnose an existing integration
+
+Use this when SanarKit is already in the app and the developer wants it checked or debugged. The result is a report, not a change.
+
+1. **Detect the app type and the SDK version** (steps 1 and 2 of the Workflow). Do not install, upgrade or edit anything.
+2. **React Native:** follow `references/rn-diagnose.md`. In short:
+   - Run `npx sanarkit-setup --doctor` from the app root (SDK 3.1.0 and later). It is read-only and checks versions, peer dependencies, the iOS and Android permission setup and where `<SanarRTC />` is rendered.
+   - Review the code for what the doctor cannot see: where and how `connect` runs, where `SanarRTC` is rendered and what its `enable` is tied to, how each component is opened and closed, and where the client ID lives.
+   - With the developer's agreement, check the running app with `SanarKit.setDebug(true)` and `SanarKit.diagnose()`, and read the `[SanarKit]` console lines. Remove the temporary code afterwards.
+   - For a reported problem, match the symptom to its cause in the reference, and confirm it with evidence.
+3. **iOS and Android:** these SDKs have no doctor command. Use the SDK's installation, connect and troubleshooting references as the checklist: the SDK version, the camera and microphone permissions, the environment and where the client ID lives, when `connect` runs and how its result and errors are handled, and how each view or screen is opened.
+4. **Report** every finding with its evidence (a file and line, a doctor line or a console line) and its fix, most serious first, then what passed and what you could not check. Never include the client ID, a token or member details. `references/rn-diagnose.md` has the report layout.
+5. **Ask which findings to fix.** Fix only those. For a misplaced component, continue with the next section.
+
+## Fix a misplaced component
+
+On React Native, `SanarRTC` must be rendered once, at the app root, after the app's content, in a view that fills the window, always mounted, with `enable` tied to the connected flag. The doctor's Placement warnings, the `[SanarKit][RTC]` and `[SanarKit][Layout]` console warnings and the `sanar_rtc_*` checks of `SanarKit.diagnose()` all point at a `SanarRTC` that is somewhere else.
+
+1. Find every `<SanarRTC />`, the root component and where the connected flag lives.
+2. Tell the developer what will move, from where to where, and what else has to change with it, such as a flag that moves into a context. Wait for a yes, because the change touches the root of the app.
+3. Make the smallest change that gets to the recommended layout. Keep the props and callbacks, and keep what `connect` is called with. If a screen owned `connect` and the connected flag, they move to the root with `SanarRTC`: say so in step 2. `references/rn-fix-placement.md` has the before and after for each case: inside a screen or a tab, rendered more than once, rendered conditionally, inside a padded or safe-area view, Expo Router, a wrong `enable`, and a call hidden behind the app's own `Modal`. It also covers the other components, which belong in a screen and must fill it.
+4. Verify: run the doctor again, type-check or build, and when the app can run, confirm that the warnings are gone. Report what moved and what you could not verify.
+
+On iOS and Android there is no `SanarRTC`. A view or screen that opens in the wrong place is fixed from that view's or screen's reference.
 
 ## Rules
 
@@ -143,7 +189,7 @@ Leave the changes uncommitted for the developer to review.
 
 The references were written against these SDK versions, checked against the shipped packages:
 
-- **React Native:** `@maren-sa/react-native-sanarkit` **3.0.1**, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x, which this skill does not cover). It targets React Native's legacy architecture. Node.js 16 or higher.
+- **React Native:** `@maren-sa/react-native-sanarkit` **3.1.0**, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x, which this skill does not cover). It targets React Native's legacy architecture. Node.js 16 or higher.
 - **iOS:** the SanarKit Swift Package, tag **2.1.1**, and its README dated 2025-09-02. iOS 17.5 or later, Xcode 16.4 or later.
 - **Android:** the `.aar` **2.1.1**. Minimum SDK 24.
 - **Web:** not covered.
@@ -161,14 +207,16 @@ Each file is linked here directly. Read only the ones for the detected SDK, and 
 | [rn-installation.md](references/rn-installation.md) | Installing: requirements, Expo, monorepos, package managers, peer dependencies, New Architecture |
 | [rn-connect.md](references/rn-connect.md) | Setting the environment and calling `connect`, and the member fields |
 | [rn-permissions.md](references/rn-permissions.md) | Adding the iOS and Android camera and microphone permissions |
-| [rn-troubleshooting.md](references/rn-troubleshooting.md) | The install, build or `connect` fails |
+| [rn-diagnose.md](references/rn-diagnose.md) | Checking, diagnosing or debugging an integration that already exists: the doctor, the code review, the running app, and the report |
+| [rn-fix-placement.md](references/rn-fix-placement.md) | Moving a misplaced `SanarRTC` or another component to where it works |
+| [rn-troubleshooting.md](references/rn-troubleshooting.md) | The install, build, `connect` or a video call fails, or you need the doctor and diagnostics output explained |
 | [rn-sharing.md](references/rn-sharing.md) | The app needs to share a link from its own screens |
 | [rn-component-skdashboard.md](references/rn-component-skdashboard.md) | Adding `SKDashboard` |
 | [rn-component-skservice.md](references/rn-component-skservice.md) | Adding `SKService` for one service |
 | [rn-component-skappointments.md](references/rn-component-skappointments.md) | Adding `SKAppointments` |
 | [rn-component-skconsultation.md](references/rn-component-skconsultation.md) | Adding `SKConsultation` |
 | [rn-component-itcbooking.md](references/rn-component-itcbooking.md) | Adding `ITCBooking` |
-| [rn-component-sanarrtc.md](references/rn-component-sanarrtc.md) | Adding `SanarRTC` for video calls |
+| [rn-component-sanarrtc.md](references/rn-component-sanarrtc.md) | Adding `SanarRTC` for video calls, call failures (`onError`) and SDK logs |
 
 ### iOS
 

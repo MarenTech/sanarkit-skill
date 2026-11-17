@@ -1,10 +1,46 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.0.1 in a React Native app. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.1.0 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
 Every `pod install` in this file follows two rules. If the app has the New Architecture off, put `RCT_NEW_ARCH_ENABLED=0` in front of it. If the app has a `Gemfile`, the usual command is `bundle exec pod install`, but if Bundler or the `Gemfile` cannot run (for example an old system Ruby), plain `pod install` is acceptable. `rn-installation.md` has the details.
+
+## Start here: the doctor and the SDK's own diagnostics
+
+To check a whole integration that already exists, follow the diagnose reference (`rn-diagnose.md`) instead: it has the full procedure and the report layout. To move a misplaced `SanarRTC`, follow the fix-placement reference (`rn-fix-placement.md`).
+
+SanarKit 3.1.0 can check an integration itself. Use these before you read code or guess. Earlier versions have neither.
+
+### In the project: `npx sanarkit-setup --doctor`
+
+Run it from the app root. It reads the project, installs and changes nothing, works with every package manager, and exits with code 1 when it finds an error, so it also fits a CI job. It prints its findings in groups, each with a fix where there is one:
+
+- **Versions and Dependencies:** the React Native and React versions, every peer dependency against SanarKit's range, the Reanimated version for the app's React Native, and a leftover `sanar-rtc`. A peer outside its range is a warning, except `react-native-agora`, which is an error. A warning about a version that the developer chose on purpose (for example `react-native-svg` 15, see "Build") is expected: report it, and do not change the version back.
+- **iOS:** `NSCameraUsageDescription` and `NSMicrophoneUsageDescription` in `Info.plist`, `setup_permissions` with `'Camera'` and `'Microphone'` in the `Podfile`, and the `react-native-agora` and `react-native-permissions` pods in `Podfile.lock`.
+- **Android:** `CAMERA`, `RECORD_AUDIO`, `INTERNET` and `MODIFY_AUDIO_SETTINGS` are declared or come from `react-native-agora`'s manifest, none is removed with `tools:node="remove"`, and `BLUETOOTH_CONNECT` is declared.
+- **New Architecture:** whether it is on, for each platform. This is information only. The rule in `rn-installation.md` still applies.
+- **Placement:** whether `<SanarRTC />` is rendered not at all, more than once, or in what looks like a screen. "Not rendered" is expected when the developer did not ask for video calls.
+
+Fix what your integration caused. For everything else, tell the developer the finding and its fix, and ask before you change it.
+
+### In the running app: `SanarKit.setDebug` and `SanarKit.diagnose()`
+
+- `SanarKit.setDebug(true)` (or `__DEV__`), called once at startup, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]`, `[SanarKit][Agora]`, `[SanarKit][Socket]`, `[SanarKit][Permissions]`, `[SanarKit][Layout]` or `[SanarKit][Diagnose]`.
+- `await SanarKit.diagnose()` checks the running app without prompting, logs each finding, and returns `{ ok, errors, warnings, checks: [{ id, status, message, fix? }], timestamp }`. `status` is `ok`, `info`, `warn` or `error`. With `setDebug(true)` called before `SanarRTC` is enabled, it also runs by itself about 3 seconds after `SanarRTC` is first enabled.
+
+| Check `id` | What it tells you |
+| --- | --- |
+| `platform` | OS, React Native and React versions, and whether the New Architecture is on (information only) |
+| `environment` | The SanarKit environment. A warning when a release build is not on `production` |
+| `session` | Whether `SanarKit.connect()` succeeded |
+| `socket` | Whether the messaging connection that delivers incoming calls is up |
+| `sanar_rtc_mounted` | Whether `SanarRTC` is mounted exactly once |
+| `sanar_rtc_listening` | Whether `SanarRTC` is enabled and listening on the current connection |
+| `sanar_rtc_layout` | Whether `SanarRTC` covers the screen |
+| `permission_microphone`, `permission_camera`, `permission_bluetooth` (Android) | The permission status. `unavailable` for the microphone or camera usually means a missing `Info.plist` key, `Podfile` entry or manifest permission, and the `fix` says which |
+
+Neither check can verify the call token or the developer's backend. The log entries leave out the call token, the session token and the Agora app ID, so they can be shared with the Sanar team. Never add the client ID or member details to them.
 
 ## Install
 
@@ -184,14 +220,14 @@ The app still has the old `sanar-rtc` package. Remove it completely with the app
 
 ### A Reanimated error, or a version mismatch
 
-SanarKit declares `react-native-reanimated` (`>=3.1.0`) as a peer, and `npx sanarkit-setup` installs the version recommended for the app's React Native version. In 3.0.1 the SDK's compiled code does not import Reanimated (checked in the package's `lib/` folder), so a Reanimated error usually comes from the app's own Reanimated version not matching its React Native version.
+SanarKit declares `react-native-reanimated` (`>=3.1.0`) as a peer, and `npx sanarkit-setup` installs the version recommended for the app's React Native version. In 3.1.0 the SDK's compiled code does not import Reanimated (checked in the package's `lib/` folder), so a Reanimated error usually comes from the app's own Reanimated version not matching its React Native version.
 
 1. Read the installed `react-native` and `react-native-reanimated` versions.
 2. Compare Reanimated with the `recommended` and `compatible` values for that React Native minor in `sanarkitCompatibility` (`rn-installation.md` has the table). If the app's version is in the `compatible` list, it is fine for SanarKit.
 3. If it is outside the list, **tell the developer and ask** before changing it. The app may need its Reanimated version for other reasons.
 4. If the developer agrees, install the `recommended` version with the app's manager, then rebuild the native projects (`cd ios && pod install`, and `cd android && ./gradlew clean`). A "mismatch between the JavaScript part and the native part" message usually means the native app was not rebuilt after the version changed.
 
-If React Native is not in the table (below 0.68 or above 0.81), say so: SanarKit 3.0.1 supports React Native 0.71 to 0.81. Ask the developer to contact Sanar for the Reanimated version, and do not guess.
+If React Native is not in the table (below 0.68 or above 0.81), say so: SanarKit 3.1.0 supports React Native 0.71 to 0.81. Ask the developer to contact Sanar for the Reanimated version, and do not guess.
 
 ## Connect and session
 
@@ -220,7 +256,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.0.1, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.1.0, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -273,9 +309,43 @@ Work through the list:
 4. A doctor started the call. Members do not start calls with `SanarRTC`.
 5. The app is in the foreground. For a member whose app is in the background or closed, the developer needs their own notification path. That is outside this integration.
 
+On SDK 3.1.0, `SanarKit.diagnose()` answers points 1 to 3 directly: see `session`, `socket`, `sanar_rtc_mounted` and `sanar_rtc_listening` in "Start here". A `sanar_rtc_listening` error that names an old messaging socket means `connect` was called again while `enable` stayed `true`: set `enable` to `false`, call `connect`, and set `enable` to `true` once it resolves with `status: true`.
+
+### The ringer shows, but nothing appears after Accept
+
+The member taps Accept, the ringer goes away, and no call screen appears.
+
+1. **Check the SDK version.** This is how SDK 3.0.1 and earlier behave when the call cannot be joined: they show nothing until the join is confirmed, and report no error. On React 19 (React Native 0.78 and later) those versions also lose their default props. SDK 3.1.0 shows "Connecting" at once, and a failure screen if the call cannot be connected. If the installed SDK is older, report it and ask before upgrading.
+2. **On 3.1.0, read what the SDK reports.** Look at the `onError` callback and the `CALL_FAILED` status, and at the `[SanarKit][RTC]` and `[SanarKit][Agora]` console lines with `SanarKit.setDebug(true)`. "Call failed" below explains each stage.
+3. **Run both checks** from "Start here". A `SanarRTC` that is mounted in a screen, mounted twice, or that does not cover the screen can lose or hide the call screen.
+4. **Look for a view on top.** See "The call screen is hidden behind another view" below.
+
+### Call failed: `onError`, `CALL_FAILED`, or the "Call could not be connected" screen
+
+SDK 3.1.0 shows "Call could not be connected" (or "Call disconnected" during a call), sends `CALL_FAILED` to `onCallStatusChange`, and calls `onError` with `{ stage, code?, message }`:
+
+| `stage` | What to check |
+| --- | --- |
+| `payload` | The call Sanar sent is missing its provider ID, token or room name. Nothing in the app fixes this: report it for the Sanar team |
+| `engine_init` | The call engine did not start. Check that `react-native-agora` is installed at `^4.5.3`, that the pods were installed and the app was rebuilt, and that `sanar-rtc` is gone. The doctor checks all three |
+| `join` | Agora rejected the join. Report `code` and `message` for the Sanar team |
+| `connection` | The connection failed before or during the call, for example an invalid or expired token, or a lost network. Check the device's network, then report `code` for the Sanar team |
+| `timeout` | The doctor did not appear within 30 seconds of Accept. Check the network on both sides, and that the doctor's side did not end the call |
+| `callback` | One of the app's own `SanarRTC` callbacks threw. The call continues. Fix the callback |
+
+Do not add a retry or the app's own failure screen unasked. The SDK already shows one and ends the call for the doctor.
+
+### The call screen is cropped or offset
+
+`SanarRTC` fills the area it is rendered in. Inside a padded view, a card, or a screen below a header or above a tab bar, the call screen is cropped. SDK 3.1.0 measures the area when `SanarRTC` mounts and logs a `[SanarKit][Layout]` warning with the measured size and position, and `diagnose()` reports it as `sanar_rtc_layout`. Move `SanarRTC` to the app root, after the app's content and outside navigators, scroll views and padded containers.
+
+### The call screen is hidden behind another view
+
+The call screen draws above its siblings (`zIndex` 999 and, from 3.1.0, Android `elevation` 999, so a tab bar with an elevation no longer covers it). The SDK cannot detect a view drawn above it from elsewhere, such as the app's own `Modal` or a native overlay, and neither check reports it. Look at what the app renders after or above `SanarRTC`, and ask the developer before you change their screens.
+
 ### Camera, microphone or Bluetooth permission is blocked
 
-When the ringer appears, `SanarRTC` asks for any missing permission. If one is blocked, the member sees "Please enable required permission in settings", and the call is not accepted until it is granted.
+On SDK 3.1.0, when the ringer appears `SanarRTC` asks for the microphone permission (and Bluetooth on Android 12 and later, which never blocks a call). If the microphone is not granted when the member taps Accept, the member sees "Please enable required permission in settings", and the call is not accepted until it is granted. Closing that message leaves the call ringing. The camera is asked for when the member turns it on in the call controls. `diagnose()` reports each permission, and `[SanarKit][Permissions]` lines mean a permission check itself failed, which usually points at the `react-native-permissions` setup.
 
 If the prompt never appears, or the app closes when a call rings:
 
@@ -291,11 +361,11 @@ If the prompt never appears, or the app closes when a call rings:
 
 ### `onCallStatusChange` reports `'disconnect'`
 
-The real-time connection to Sanar closed. It does not mean a call ended. Either `SanarRTC`'s `enable` was set to `false` (which calls `SanarKit.disconnect()`), or the connection dropped, for example when the network was lost. Do not call `SanarKit.connect` just because you saw `'disconnect'`: a second `connect` does not close the first connection. Whether an automatic reconnection brings calls back without any action from the app is to confirm.
+The real-time connection to Sanar closed. It does not mean a call ended. Either `SanarRTC`'s `enable` was set to `false` (which calls `SanarKit.disconnect()`), or the connection dropped, for example when the network was lost. Do not call `SanarKit.connect` just because you saw `'disconnect'`: a second `connect` does not close the first connection. The messaging connection reconnects by itself, and the `socket` check of `diagnose()` shows whether it is up. Whether calls come back after that without any action from the app is to confirm.
 
 ### `SanarRTC` fails when a callback is left out
 
-Pass both `onCallStatusChange` and `onViewModeChange`, even if they only log. How `SanarRTC` behaves on React 19 (React Native 0.78 and later) when a callback is left out is to confirm.
+This is SDK 3.0.1 and earlier on React 19 (React Native 0.78 and later), where the default callbacks are lost. In SDK 3.1.0 every callback is optional, and a callback that throws is caught and reported through `onError` with stage `callback`. On an older SDK, pass both `onCallStatusChange` and `onViewModeChange`, even if they only log, or ask the developer about upgrading.
 
 ## Tests
 
@@ -323,8 +393,10 @@ With that mock, the template's `App` test passed in the end-to-end run (React Na
 
 Tell the developer to contact the Sanar team and to include:
 
-- The SDK version (3.0.1), the React Native version, the platform and OS version, and the environment that was set.
-- What was expected and what happened, with the console lines from the SDK.
+- The SDK version (3.1.0), the React Native version, the platform and OS version, and the environment that was set.
+- What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`).
+- The output of `npx sanarkit-setup --doctor`, and the report from `SanarKit.diagnose()`.
+- For a failed call, the `stage`, `code` and `message` that `onError` received.
 - The `message` that `connect` returned, if it did.
 
 Never put the client ID, a member's details or a token in a message, a ticket or your own output.

@@ -2,7 +2,7 @@
 
 Add the camera and microphone permissions that SanarKit video consultations need, on iOS and on Android, and set up `react-native-permissions` for iOS. Rebuild the native apps afterwards, because a JavaScript reload is not enough.
 
-These are the entries from the SDK 3.0.1 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
+These are the entries from the SDK 3.1.0 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
 
 ## Rules
 
@@ -72,7 +72,7 @@ Add these inside the `<manifest>` element of `android/app/src/main/AndroidManife
 <uses-permission android:name="android.permission.CAMERA" />
 ```
 
-All six are the SDK's list. Add exactly these, and skip any that the manifest already has. Do not add permissions that SanarKit does not list.
+All six are the SDK's list. Add exactly these, and skip any that the manifest already has. Do not add permissions that SanarKit does not list. `npx sanarkit-setup --doctor` also names `MODIFY_AUDIO_SETTINGS`: `react-native-agora`'s own manifest provides it, so it is not in this list. If the doctor reports it as not declared, `react-native-agora` is not installed.
 
 ## Expo projects with generated native folders
 
@@ -110,7 +110,9 @@ Merge these into the keys the file already has (an existing `plugins` or `permis
 
 ## What the SDK does at runtime
 
-When a video call rings, SanarKit checks for camera and microphone permission, and Bluetooth permission on Android, and asks the member for any that are missing. If the member has blocked one, SanarKit shows "Please enable required permission in settings" with a button to the device settings, and the call is not accepted until it is granted. Camera, microphone and (on Android) Bluetooth must all be allowed.
+When a video call rings, SanarKit asks for the microphone permission if the member has not answered it yet, and on Android 12 and later for the Bluetooth permission. Bluetooth never blocks a call. Accept checks the microphone again without a new prompt. If it is not granted, SanarKit shows "Please enable required permission in settings" with a button to the device settings, and the call is not accepted until it is granted. Closing that message leaves the call ringing; it does not decline it. The camera is not asked for at the ringer: a video call starts with the camera on only if the permission is already granted, and the member is asked when they turn the camera on from the call controls.
+
+This is the behavior of SDK 3.1.0. Earlier versions asked for the camera, the microphone and Bluetooth together at the ringer.
 
 ## Rebuild
 
@@ -128,4 +130,5 @@ In an Expo project, use the development build commands instead (`npx expo run:io
 - `Info.plist` contains both usage description keys, and the `Podfile` calls `setup_permissions` with `'Camera'` and `'Microphone'`.
 - `AndroidManifest.xml` contains the six permissions, each once.
 - `git diff` shows only these files changed in this step.
+- `npx sanarkit-setup --doctor`, run from the app root, reports no iOS or Android permission error. It reads `Info.plist`, the `Podfile`, `Podfile.lock` and the manifest, and changes nothing. In an Expo project with generated native folders it can only check them after a prebuild.
 - You cannot check the prompts without a call. If you could not start a call, say that you did not verify the runtime permission prompts.

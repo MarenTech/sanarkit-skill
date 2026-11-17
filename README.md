@@ -1,6 +1,6 @@
 # SanarKit integration skill
 
-An [Agent Skill](https://agentskills.io/specification) that lets an AI coding agent add the SanarKit SDK to your app and put a Sanar component on screen. It covers three separate SDKs: React Native, iOS and Android.
+An [Agent Skill](https://agentskills.io/specification) that lets an AI coding agent add the SanarKit SDK to your app and put a Sanar component on screen. It can also check an integration you already have, report what is wrong with the fix, and move a misplaced component to where it works. It covers three separate SDKs: React Native, iOS and Android.
 
 The skill is one folder, `skills/sanarkit-integration/`:
 
@@ -13,7 +13,22 @@ The skill is one folder, `skills/sanarkit-integration/`:
 - Checks whether SanarKit is already installed. If the installed version is older than the version the skill covers, it asks before upgrading.
 - Installs the SDK and adds the camera and microphone permissions.
 - Calls `setEnvironment` and `connect`, with the client ID read from your app's own git-ignored config, and adds the component you choose to your navigation.
+- On React Native, runs SanarKit's read-only project check (`npx sanarkit-setup --doctor`, from SDK 3.1.0) and fixes what the integration caused.
 - Builds the app, fixes errors the integration caused, and reports the files it changed and the values you still have to fill in.
+
+### Check an existing integration
+
+Ask the agent to diagnose your SanarKit setup. It changes nothing until you have seen its report.
+
+- On React Native it runs the read-only `npx sanarkit-setup --doctor` (SDK 3.1.0 and later), which checks versions, peer dependencies, the iOS and Android permission setup and where `SanarRTC` is rendered.
+- It reviews your code for what that command cannot see: when `connect` runs, where `SanarRTC` is rendered and what its `enable` is tied to, how each component is opened and closed, and where the client ID lives.
+- If you agree, it checks the running app with `SanarKit.diagnose()` and the SDK's `[SanarKit]` console logs, and removes its temporary code afterwards.
+- On iOS and Android, which have no doctor command, it checks the same areas from the SDK's references.
+- It reports each finding with its evidence and fix, what passed, and what it could not check, such as a real incoming call. Then it asks which findings to fix.
+
+### Fix a misplaced component
+
+On React Native, `SanarRTC` must be rendered once, at the app root, after your app's content, with `enable` tied to your connected flag. If it is inside a screen, rendered twice, rendered conditionally, or inside a padded or safe-area view, the agent tells you what it will move and where, waits for your yes, makes the smallest change, and checks the result with the doctor.
 
 What it will not do: hardcode, commit or print your client ID, change code the integration does not need, upgrade your framework or dependencies without asking, or make up member details.
 
@@ -45,6 +60,18 @@ Video calls, in a React Native app:
 
 > Use the sanarkit-integration skill to add Sanar video calls with SanarRTC to this app, so members can receive and answer calls from any screen.
 
+Check a setup you already have:
+
+> Use the sanarkit-integration skill to diagnose the SanarKit setup in this app. Do not change anything yet. Report what is wrong and how to fix it.
+
+Debug a problem:
+
+> Use the sanarkit-integration skill to find out why the incoming-call ringer shows but no call screen appears after the member accepts.
+
+Fix a misplaced component:
+
+> Use the sanarkit-integration skill to check where SanarRTC is rendered in this app and move it to the recommended place.
+
 An iOS or Android app:
 
 > Use the sanarkit-integration skill to add the SanarKit dashboard to the home screen of this app.
@@ -55,7 +82,7 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 | SDK | Version the references were written against |
 | --- | --- |
-| React Native | `@maren-sa/react-native-sanarkit` 3.0.1, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x). It targets React Native's legacy architecture |
+| React Native | `@maren-sa/react-native-sanarkit` 3.1.0, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x). It targets React Native's legacy architecture |
 | iOS | The SanarKit Swift Package, tag 2.1.1 (iOS 17.5 or later, Xcode 16.4 or later) |
 | Android | The SanarKit `.aar`, version 2.1.1 |
 
