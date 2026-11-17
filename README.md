@@ -34,7 +34,38 @@ What it will not do: hardcode, commit or print your client ID, change code the i
 
 ## Install
 
-This skill works with agents that support the Agent Skills format (`SKILL.md`). Check your agent's documentation for how it loads skills.
+This skill works with agents that support the Agent Skills format (`SKILL.md`).
+
+### With npx (recommended)
+
+Run this from the root of your app:
+
+```sh
+npx skills add MarenTech/sanarkit-skill
+```
+
+The command downloads this repository and asks which of your coding agents to install the skill for. It then puts the whole `sanarkit-integration` folder, with `SKILL.md` and `references/`, into that agent's skills folder inside your project. It needs Node.js 22.20 or later.
+
+| Option | What it does |
+| --- | --- |
+| `-g` | Installs for your user account (every project) instead of this project only |
+| `-a <agent>` | Installs for the agent you name, for example `-a claude-code`, and does not ask |
+| `-y` | Skips the confirmation prompts |
+| `--list` | Shows the skills in this repository and installs nothing |
+
+For example, without any prompt:
+
+```sh
+npx skills add MarenTech/sanarkit-skill --skill sanarkit-integration -a claude-code -y
+```
+
+To get a newer version later, run `npx skills update`. `npx skills list` shows what is installed and where.
+
+[`skills`](https://github.com/vercel-labs/skills) is an open-source command-line tool for Agent Skills. Sanar does not make it. It collects anonymous usage data, which you can turn off with `DISABLE_TELEMETRY=1`.
+
+### By hand
+
+Use this if you cannot run `npx`, or if the command does not know your agent. Check your agent's documentation for where it loads skills from.
 
 1. Get the repository:
 
@@ -44,7 +75,9 @@ This skill works with agents that support the Agent Skills format (`SKILL.md`). 
 
 2. Copy the whole `skills/sanarkit-integration/` folder into your agent's skills folder. Copy the folder, not only `SKILL.md`: the files in `references/` hold the steps the agent follows. The folder name must stay `sanarkit-integration`.
 
-3. Restart or reload your agent, or ask for the skill by name in your prompt.
+### After you install
+
+Restart or reload your agent, or ask for the skill by name in your prompt.
 
 ## Example prompts
 

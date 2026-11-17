@@ -315,6 +315,18 @@ test('frontmatter follows the Agent Skills spec', () => {
   }
 });
 
+test('README gives the npx install command first, and the skill sits where that command looks for it', () => {
+  const readme = readText(README_MD);
+  assert.match(readme, /^npx skills add MarenTech\/sanarkit-skill$/m, 'the npx command, on its own line');
+  assert.ok(
+    readme.indexOf('npx skills add MarenTech/sanarkit-skill') < readme.indexOf('git clone https://github.com/MarenTech/sanarkit-skill.git'),
+    'npx comes before the manual install',
+  );
+  // `npx skills add <owner>/<repo>` finds skills at skills/<name>/SKILL.md, and installs the folder under its frontmatter name.
+  assert.equal(relative(ROOT, SKILL_MD), join('skills', 'sanarkit-integration', 'SKILL.md'));
+  assert.equal(frontmatterOf(readText(SKILL_MD)).name, 'sanarkit-integration');
+});
+
 test('SKILL.md is under 500 lines', () => {
   const lines = readText(SKILL_MD).split('\n').length;
   assert.ok(lines < 500, `SKILL.md has ${lines} lines`);
