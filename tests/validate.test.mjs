@@ -313,7 +313,7 @@ test('frontmatter follows the Agent Skills spec', () => {
   assert.match(fm.metadata.version, /^\d+\.\d+\.\d+$/, 'metadata.version is the skill\'s own semantic version');
   assert.ok(readText(README_MD).includes(`Skill version ${fm.metadata.version}`), 'the README states the same skill version');
   const versions = fm.metadata['sdk-versions'];
-  for (const covered of ['react-native 3.1.1', 'ios 2.1.1', 'android 2.1.1']) {
+  for (const covered of ['react-native 3.1.2', 'ios 2.1.1', 'android 2.1.1']) {
     assert.ok(versions?.includes(covered), `metadata.sdk-versions mentions "${covered}"`);
   }
 });
@@ -879,8 +879,11 @@ test('e2e fixes: stale wording is gone and the safety statements stay', () => {
   assert.ok(rnConnect.includes('test -f <path>/sanar.config.ts'), 'rn-connect.md checks that the file exists first');
   assert.ok(rnConnect.includes('--error-unmatch'), 'rn-connect.md uses the --error-unmatch form');
 
-  // React Native: install with Reanimated, never --force, the svg experiment is explicit.
-  assert.match(read('rn-installation.md'), /npm install @maren-sa\/react-native-sanarkit "react-native-reanimated@/);
+  // React Native: from 3.1.2 the SDK is installed by itself, without a Reanimated version. Never --force.
+  assert.match(read('rn-installation.md'), /\| npm \| `npm install @maren-sa\/react-native-sanarkit` \|/);
+  for (const name of [...referenceNames, '../SKILL.md']) {
+    assert.ok(!/react-native-sanarkit "react-native-reanimated@|sanarkitCompatibility|Reanimated versions/.test(readText(join(REFS_DIR, name))), `${name}: no Reanimated install step or table`);
+  }
   const rnTroubleshooting = read('rn-troubleshooting.md');
   assert.ok(rnTroubleshooting.includes('to confirm with the Sanar team'), 'the svg 15 experiment is marked to confirm with the Sanar team');
   assert.ok(rnTroubleshooting.includes('Ask the developer before you apply it'), 'the svg 15 change needs the developer first');

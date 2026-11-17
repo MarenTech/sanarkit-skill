@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.1.1 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.1.2 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -16,7 +16,7 @@ SanarKit 3.1.0 can check an integration itself. Use these before you read code o
 
 Run it from the app root. It reads the project, installs and changes nothing, works with every package manager, and exits with code 1 when it finds an error, so it also fits a CI job. It prints its findings in groups, each with a fix where there is one:
 
-- **Versions and Dependencies:** the React Native and React versions, every peer dependency against SanarKit's range, the Reanimated version for the app's React Native, and a leftover `sanar-rtc`. A peer outside its range is a warning, except `react-native-agora`, which is an error. A warning about a version that the developer chose on purpose (for example `react-native-svg` 15, see "Build") is expected: report it, and do not change the version back.
+- **Versions and Dependencies:** the React Native and React versions, every peer dependency against SanarKit's range, and a leftover `sanar-rtc`. A peer outside its range is a warning, except `react-native-agora`, which is an error. A warning about a version that the developer chose on purpose (for example `react-native-svg` 15, see "Build") is expected: report it, and do not change the version back.
 - **iOS:** `NSCameraUsageDescription` and `NSMicrophoneUsageDescription` in `Info.plist`, `setup_permissions` with `'Camera'` and `'Microphone'` in the `Podfile`, and the `react-native-agora` and `react-native-permissions` pods in `Podfile.lock`.
 - **Android:** `CAMERA`, `RECORD_AUDIO`, `INTERNET` and `MODIFY_AUDIO_SETTINGS` are declared or come from `react-native-agora`'s manifest, none is removed with `tools:node="remove"`, and `BLUETOOTH_CONNECT` is declared.
 - **New Architecture:** whether it is on, for each platform. This is information only. The rule in `rn-installation.md` still applies.
@@ -54,9 +54,9 @@ The SDK's own guide says the scope is private and needs an npm token from Sanar.
 
 ### `npm install` fails with `ERESOLVE` and names `react-native-reanimated`
 
-npm 7 and later installs the SDK's missing peers itself, and it picks the newest Reanimated that fits the peer range `>=3.1.0`. That can be a release (4.x) whose own peer range needs a newer React Native than the app has, so the install stops. In the end-to-end runs on React Native 0.81.6 it picked Reanimated 4.7.1 (peer React Native 0.86 to 0.88).
+The command is installing SanarKit 3.1.1 or earlier. Those versions declared `react-native-reanimated` (`>=3.1.0`) as a peer, and npm 7 and later picks the newest Reanimated in that range, which can need a newer React Native than the app has. On React Native 0.79.5 and 0.81.6 it picked Reanimated 4.7.1 (peer React Native 0.86 to 0.88).
 
-Install the SDK and the Reanimated version from the table in `rn-installation.md` for the app's React Native in one command, for example `npm install @maren-sa/react-native-sanarkit "react-native-reanimated@~3.19.0"` on 0.81, then run `npx sanarkit-setup`. The equivalents for yarn, pnpm and bun are in `rn-installation.md`. **Never use `--force` or `--legacy-peer-deps`.**
+SanarKit 3.1.2 and later do not declare Reanimated. Install the current version by itself, then run `npx sanarkit-setup`. **Never use `--force` or `--legacy-peer-deps`.** If the developer has to stay on 3.1.1 or earlier, name a Reanimated version that fits the app's React Native in the same command, and ask the developer which.
 
 ### Another peer dependency conflict
 
@@ -220,14 +220,7 @@ The app still has the old `sanar-rtc` package. Remove it completely with the app
 
 ### A Reanimated error, or a version mismatch
 
-SanarKit declares `react-native-reanimated` (`>=3.1.0`) as a peer, and `npx sanarkit-setup` installs the version recommended for the app's React Native version. In 3.1.0 the SDK's compiled code does not import Reanimated (checked in the package's `lib/` folder), so a Reanimated error usually comes from the app's own Reanimated version not matching its React Native version.
-
-1. Read the installed `react-native` and `react-native-reanimated` versions.
-2. Compare Reanimated with the `recommended` and `compatible` values for that React Native minor in `sanarkitCompatibility` (`rn-installation.md` has the table). If the app's version is in the `compatible` list, it is fine for SanarKit.
-3. If it is outside the list, **tell the developer and ask** before changing it. The app may need its Reanimated version for other reasons.
-4. If the developer agrees, install the `recommended` version with the app's manager, then rebuild the native projects (`cd ios && pod install`, and `cd android && ./gradlew clean`). A "mismatch between the JavaScript part and the native part" message usually means the native app was not rebuilt after the version changed.
-
-If React Native is not in the table (below 0.68 or above 0.81), say so: SanarKit 3.1.1 supports React Native 0.71 to 0.81. Ask the developer to contact Sanar for the Reanimated version, and do not guess.
+SanarKit does not use Reanimated, and from 3.1.2 it does not declare it as a peer. A Reanimated error comes from the app's own Reanimated version not matching its React Native version, or from native code that was not rebuilt after the version changed ("mismatch between the JavaScript part and the native part"). It is not an integration error: tell the developer, and do not change their Reanimated version.
 
 ## Connect and session
 
@@ -256,7 +249,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.1.1, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.1.2, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -393,7 +386,7 @@ With that mock, the template's `App` test passed in the end-to-end run (React Na
 
 Tell the developer to contact the Sanar team and to include:
 
-- The SDK version (3.1.1), the React Native version, the platform and OS version, and the environment that was set.
+- The SDK version (3.1.2), the React Native version, the platform and OS version, and the environment that was set.
 - What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`).
 - The output of `npx sanarkit-setup --doctor`, and the report from `SanarKit.diagnose()`.
 - For a failed call, the `stage`, `code` and `message` that `onError` received.

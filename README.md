@@ -121,11 +121,11 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 ## SDK versions covered
 
-Skill version 1.1.0.
+Skill version 1.2.0.
 
 | SDK | Version the references were written against |
 | --- | --- |
-| React Native | `@maren-sa/react-native-sanarkit` 3.1.1, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x). It targets React Native's legacy architecture |
+| React Native | `@maren-sa/react-native-sanarkit` 3.1.2, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x). It targets React Native's legacy architecture |
 | iOS | The SanarKit Swift Package, tag 2.1.1 (iOS 17.5 or later, Xcode 16.4 or later) |
 | Android | The SanarKit `.aar`, version 2.1.1 |
 
