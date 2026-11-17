@@ -1,21 +1,21 @@
 # React Native installation
 
-Install `@maren-sa/react-native-sanarkit` 3.1.2 and its peer dependencies in a React Native app, with the app's own package manager. This file covers: requirements, Expo, monorepos, package managers, the setup command, peer dependencies and the New Architecture.
+Install `@maren-sa/react-native-sanarkit` 3.1.4 and its peer dependencies in a React Native app, with the app's own package manager. This file covers: requirements, Expo, monorepos, package managers, the setup command, peer dependencies and the New Architecture.
 
-Everything here is for SDK 3.1.2. If the installed package disagrees with this file, trust the installed package and tell the developer.
+Everything here is for SDK 3.1.4. If the installed package disagrees with this file, trust the installed package and tell the developer.
 
 ## Check these before you install
 
 1. **App folder.** Work from the folder whose `package.json` lists `react-native`. In a monorepo that is the app's folder (for example `apps/mobile`), not the repository root. Run every command below from that folder.
 2. **React Native version.** Read `version` in `node_modules/react-native/package.json` (it may be hoisted to the monorepo root). If it is not installed yet, read the `react-native` entry in `package.json`.
-   - SanarKit 3.1.2 supports React Native 0.71 to 0.81.
-   - On 0.68 to 0.70, the matching SDK is SanarKit 2.1.x, which this skill does not cover. Tell the developer, do not install 3.1.2, and ask how they want to go on. The package's peer range is `react-native >=0.68.0`, so the install would not stop by itself.
-   - Outside 0.68 to 0.81, tell the developer that SanarKit 3.1.2 does not support that version, suggest they contact Sanar, and ask whether to go on.
-3. **New Architecture.** See the New Architecture section below. If it is on, tell the developer that SanarKit 3.1.2 targets the legacy architecture, and ask before you go on.
+   - SanarKit 3.1.4 supports React Native 0.71 to 0.81.
+   - On 0.68 to 0.70, the matching SDK is SanarKit 2.1.x, which this skill does not cover. Tell the developer, do not install 3.1.4, and ask how they want to go on. The package's peer range is `react-native >=0.68.0`, so the install would not stop by itself.
+   - Outside 0.68 to 0.81, tell the developer that SanarKit 3.1.4 does not support that version, suggest they contact Sanar, and ask whether to go on.
+3. **New Architecture.** See the New Architecture section below. If it is on, tell the developer that SanarKit 3.1.4 targets the legacy architecture, and ask before you go on.
 4. **Node.js 16 or higher**, which `npx sanarkit-setup` needs.
 5. **Network access.** SanarKit depends on a small package, `sanar-dynamic-components`, which the package manager fetches from a public GitHub repository. The machine that runs the install needs `git` and access to github.com. If the install fails with a git error, see `rn-troubleshooting.md`.
 6. **A client ID** from the Sanar team, to connect a member. You do not need it to install.
-7. **Older SanarKit.** If `package.json` lists `sanar-rtc`, or the installed SanarKit is below 3.1.2, report the version and ask before upgrading. Do not upgrade unasked.
+7. **Older SanarKit.** If `package.json` lists `sanar-rtc`, or the installed SanarKit is below 3.1.4, report the version and ask before upgrading. Do not upgrade unasked.
 
 ## Detect the package manager
 
@@ -105,7 +105,7 @@ Afterwards read the installed version:
 node -p "require('@maren-sa/react-native-sanarkit/package.json').version"
 ```
 
-If it is not 3.1.2, tell the developer. A newer version is fine, but check each name you use against the installed package.
+If it is not 3.1.4, tell the developer. A newer version is fine, but check each name you use against the installed package.
 
 Problems at this step:
 
@@ -169,7 +169,7 @@ The script itself runs package-manager and CocoaPods commands only. It edits no 
 
 It does **not** touch `Info.plist`, `AndroidManifest.xml`, the `Podfile`, Gradle files or Babel config. Add the permissions yourself (`rn-permissions.md` has them). Run it again whenever you upgrade SanarKit, to pick up new or changed peers.
 
-## Peer dependencies (SDK 3.1.2)
+## Peer dependencies (SDK 3.1.4)
 
 | Package | Range | What SanarKit uses it for |
 | --- | --- | --- |
@@ -185,7 +185,7 @@ The installed package's `package.json` is the authority. If its list differs fro
 
 ## New Architecture
 
-SanarKit 3.1.2 targets React Native's legacy architecture. If the app uses the New Architecture, the developer should contact Sanar before they integrate.
+SanarKit 3.1.4 targets React Native's legacy architecture. If the app uses the New Architecture, the developer should contact Sanar before they integrate.
 
 **If the developer decides to go on**, the steps are the same. In the end-to-end runs, with the New Architecture on, a React Native 0.81.6 app with SanarKit 3.0.1 built on iOS and Android, and started on the iOS simulator (iOS 26.5). Bridgeless and Fabric were confirmed active, with no red box, crash or TurboModule error. `connect` reached Sanar's server, which rejected the fake test client ID ("Invalid Authorisation"), so the request made the round trip. The two workarounds in `rn-troubleshooting.md` (the Podfile deployment target and `react-native-svg` 15.16.0 through `overrides`) were needed with the old architecture too, so they are not New Architecture issues.
 
@@ -198,7 +198,7 @@ Check whether the app has the New Architecture on:
 - **Expo:** `newArchEnabled` under `expo` in `app.json` (or `app.config.js` or `app.config.ts`).
 - **No explicit setting:** React Native 0.76 and later turn it on by default, so a missing setting does not mean it is off. Recent Expo SDKs (React Native 0.76 and later) also enable it by default. This default is general React Native knowledge, so it is to confirm for the app's versions.
 
-If it is on, or if you cannot tell, **tell the developer and ask before you go on**. Tell them that SanarKit 3.1.2 targets the legacy architecture and that they should contact Sanar before they integrate. Continue only when they say so. Never turn `newArchEnabled` off yourself.
+If it is on, or if you cannot tell, **tell the developer and ask before you go on**. Tell them that SanarKit 3.1.4 targets the legacy architecture and that they should contact Sanar before they integrate. Continue only when they say so. Never turn `newArchEnabled` off yourself.
 
 ### `pod install` when the New Architecture is off
 

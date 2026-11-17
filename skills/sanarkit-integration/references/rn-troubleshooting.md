@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.1.2 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.1.4 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -249,7 +249,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.1.2, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.1.4, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -370,7 +370,7 @@ If the prompt never appears, or the app closes when a call rings:
 
 The member or the doctor ends a call, and straight away the app shows its own connection error, `onCallStatusChange` reports `'disconnect'`, or the next call never rings. The SDK does not end the session when a call ends, so look for app code that does:
 
-- A screen that holds the call, or `SanarRTC`, closes when the call ends, and its cleanup calls `SanarKit.disconnect()`, for example `return () => SanarKit.disconnect()` in a `useEffect`. Older SDK READMEs showed this cleanup in their example, so it is often copied into a screen.
+- A screen that holds the call, or `SanarRTC`, closes when the call ends, and its cleanup calls `SanarKit.disconnect()`, for example `return () => SanarKit.disconnect()` in a `useEffect`. The SDK README showed this cleanup in its example until 3.1.4, so it is often copied into a screen.
 - The app's `onCallStatusChange` handler calls `SanarKit.disconnect()`, or sets `enable` to `false`, on `CALL_END_USER`, `CALL_END_PROVIDER` or `'disconnect'`.
 - `SanarRTC` is rendered only inside a call screen, so it unmounts when the call ends, and no call rings until it mounts again. Unmounting alone does not end the session: when it remounts with `enable` `true`, it listens on the same connection. It often comes with one of the causes above in the same screen's cleanup.
 

@@ -2,7 +2,7 @@
 
 Add the camera and microphone permissions that SanarKit video consultations need, on iOS and on Android, and set up `react-native-permissions` for iOS. Rebuild the native apps afterwards, because a JavaScript reload is not enough.
 
-These are the entries from the SDK 3.1.2 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
+These are the entries from the SDK 3.1.4 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
 
 ## Rules
 

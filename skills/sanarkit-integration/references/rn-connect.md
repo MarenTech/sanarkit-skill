@@ -93,7 +93,7 @@ SanarKit.setEnvironment('development'); // 'production' | 'development'
 ```
 
 - Choose the environment and the client ID together, from the build configuration, so a build never pairs a production client ID with the development environment or the reverse. Never hardcode `development` in a way that ships in release builds. Tell the developer that release builds need `production` and a production client ID.
-- In SDK 3.1.2 the SDK only checks for `production`. Any other value, including `'staging'` (which its type accepts), goes to the development host. Treat `staging` and `development` as the same environment, and do not use `'staging'` to reach a separate staging backend.
+- In SDK 3.1.4 the SDK only checks for `production`. Any other value, including `'staging'` (which its type accepts), goes to the development host. Treat `staging` and `development` as the same environment, and do not use `'staging'` to reach a separate staging backend.
 - `SKConsultation` also uses the environment to decide where it loads its hosted component from, so set it before you render any component.
 
 ## Connect

@@ -2,8 +2,8 @@
 name: sanarkit-integration
 description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. It can prepare a redacted report to send to the Sanar team. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, to report a SanarKit problem to Sanar, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
-  version: "1.2.2"
-  sdk-versions: "react-native 3.1.2; ios 2.1.1; android 2.1.1"
+  version: "1.2.3"
+  sdk-versions: "react-native 3.1.4; ios 2.1.1; android 2.1.1"
 ---
 
 # SanarKit integration
@@ -56,8 +56,8 @@ Compare it with the versions in the Versions covered section.
 
 React Native pre-flight, before you install anything:
 
-- Read the installed `react-native` version. SanarKit 3.1.2 supports React Native 0.71 to 0.81. On 0.68 to 0.70 the matching SDK is SanarKit 2.1.x, which this skill does not cover: tell the developer, do not install 3.1.2, and ask how they want to go on. Outside 0.68 to 0.81, tell the developer that SanarKit 3.1.2 does not support that version, suggest they contact Sanar, and ask whether to continue.
-- If the New Architecture is on, **tell the developer and ask before you go on**. SanarKit 3.1.2 targets React Native's legacy architecture, so tell them to contact Sanar before they integrate. Do not say that SanarKit supports the New Architecture. Never turn `newArchEnabled` off yourself. React Native 0.76 and later turns it on by default, so also check for an explicit setting. `references/rn-installation.md` says where to look.
+- Read the installed `react-native` version. SanarKit 3.1.4 supports React Native 0.71 to 0.81. On 0.68 to 0.70 the matching SDK is SanarKit 2.1.x, which this skill does not cover: tell the developer, do not install 3.1.4, and ask how they want to go on. Outside 0.68 to 0.81, tell the developer that SanarKit 3.1.4 does not support that version, suggest they contact Sanar, and ask whether to continue.
+- If the New Architecture is on, **tell the developer and ask before you go on**. SanarKit 3.1.4 targets React Native's legacy architecture, so tell them to contact Sanar before they integrate. Do not say that SanarKit supports the New Architecture. Never turn `newArchEnabled` off yourself. React Native 0.76 and later turns it on by default, so also check for an explicit setting. `references/rn-installation.md` says where to look.
 
 ### 3. Install
 
@@ -210,7 +210,7 @@ Use this when the developer asks to upgrade, update or bump SanarKit, or agrees 
 
 The references were written against these SDK versions, checked against the shipped packages:
 
-- **React Native:** `@maren-sa/react-native-sanarkit` **3.1.2**, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x, which this skill does not cover). It targets React Native's legacy architecture. Node.js 16 or higher.
+- **React Native:** `@maren-sa/react-native-sanarkit` **3.1.4**, for React Native 0.71 to 0.81 (0.68 to 0.70 use SanarKit 2.1.x, which this skill does not cover). It targets React Native's legacy architecture. Node.js 16 or higher.
 - **iOS:** the SanarKit Swift Package, tag **2.1.1**, and its README dated 2025-09-02. iOS 17.5 or later, Xcode 16.4 or later.
 - **Android:** the `.aar` **2.1.1**. Minimum SDK 24.
 - **Web:** not covered.

@@ -18,7 +18,7 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 Read the installed version from `node_modules/@maren-sa/react-native-sanarkit/package.json` (in the app, or hoisted to the monorepo root), and the `react-native` and `react` versions.
 
 - **3.1.0 or later:** the doctor command, `SanarKit.diagnose()`, the SDK logs and `onError` exist. Carry on.
-- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.2, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
+- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.4, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
 - A `sanar-rtc` dependency, or an import from `'react-native-sanarkit'` without the `@maren-sa/` scope, means a 2.x integration. Report it and stop: this skill does not cover 2.x.
 
 ## 2. The doctor (project files)

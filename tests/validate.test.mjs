@@ -313,7 +313,7 @@ test('frontmatter follows the Agent Skills spec', () => {
   assert.match(fm.metadata.version, /^\d+\.\d+\.\d+$/, 'metadata.version is the skill\'s own semantic version');
   assert.ok(readText(README_MD).includes(`Skill version ${fm.metadata.version}`), 'the README states the same skill version');
   const versions = fm.metadata['sdk-versions'];
-  for (const covered of ['react-native 3.1.2', 'ios 2.1.1', 'android 2.1.1']) {
+  for (const covered of ['react-native 3.1.4', 'ios 2.1.1', 'android 2.1.1']) {
     assert.ok(versions?.includes(covered), `metadata.sdk-versions mentions "${covered}"`);
   }
 });
