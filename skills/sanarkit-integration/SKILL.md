@@ -2,7 +2,7 @@
 name: sanarkit-integration
 description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   sdk-versions: "react-native 3.1.2; ios 2.1.1; android 2.1.1"
 ---
 
@@ -161,6 +161,7 @@ Use this when SanarKit is already in the app and the developer wants it checked 
    - Review the code for what the doctor cannot see: where and how `connect` runs, where `SanarRTC` is rendered and what its `enable` is tied to, how each component is opened and closed, and where the client ID lives.
    - With the developer's agreement, check the running app with `SanarKit.setDebug(true)` and `SanarKit.diagnose()`, and read the `[SanarKit]` console lines. Remove the temporary code afterwards.
    - For a reported problem, match the symptom to its cause in the reference, and confirm it with evidence.
+   - No check sees the device's network. When a call rings but fails with `timeout` and "Could not join the call within 30 seconds", ask whether the device or the computer was on a company network, a VPN or a proxy, and have the call repeated on a real phone on mobile data before you look for a fault in the app.
 3. **iOS and Android:** these SDKs have no doctor command. Use the SDK's installation, connect and troubleshooting references as the checklist: the SDK version, the camera and microphone permissions, the environment and where the client ID lives, when `connect` runs and how its result and errors are handled, and how each view or screen is opened.
 4. **Report** every finding with its evidence (a file and line, a doctor line or a console line) and its fix, most serious first, then what passed and what you could not check. Never include the client ID, a token or member details. `references/rn-diagnose.md` has the report layout.
 5. **Ask which findings to fix.** Fix only those. For a misplaced component, continue with the next section.

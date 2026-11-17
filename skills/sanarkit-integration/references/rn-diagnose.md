@@ -126,13 +126,16 @@ Match the symptom, then confirm it with steps 2 to 4. The troubleshooting refere
 | The ringer never appears | `SanarRTC` is not listening: `enable` was set before `connect` succeeded, is `false`, or `connect` ran again. Or the app is in the background | `sanar_rtc_listening`, `session`, `socket` |
 | The ringer shows, then nothing after Accept | SDK 3.0.1 or earlier and the call could not be joined. Or `SanarRTC` unmounted when the member accepted | The SDK version. `[SanarKit][RTC]` warning "SanarRTC unmounted during an active call". `onError` |
 | "Call could not be connected" | The call failed. The `stage` in `onError` says where | The `[SanarKit][RTC]` and `[SanarKit][Agora]` lines |
+| "Call could not be connected" 30 seconds after Accept, with `timeout` and "Could not join the call within 30 seconds" | The device's network blocks the call connection: a company proxy, a VPN, a secure web gateway or a firewall. A simulator or an emulator uses the computer's network | Ask which network the device or the computer was on. The same call on a real phone on mobile data, with any VPN off |
 | The call screen is cropped or offset | `SanarRTC` is in a container that does not fill the window | `[SanarKit][Layout]` warning, `sanar_rtc_layout` |
 | The call screen is behind something | The app draws a `Modal` or a native overlay above it. The SDK cannot detect this | Read what the app renders after or above `SanarRTC` |
 | The phone rings twice, or two call screens | More than one `SanarRTC` | The doctor's Placement group, `sanar_rtc_mounted` |
 | Every Sanar screen closes at once | No session: `connect` failed, or `disconnect` ran (also through `enable={false}`) | `session`, and the code review |
 | The permission prompt never shows, or the app closes when a call rings | Missing `Info.plist` keys, `Podfile` setup or manifest permissions | The doctor's iOS and Android groups |
 
-A `payload`, `join`, `connection` or `timeout` failure with a correct setup usually comes from the call itself, not from the app. Report the `stage`, `code` and `message` for the Sanar team.
+A `payload`, `join` or `connection` failure with a correct setup usually comes from the call itself, not from the app. Report the `stage`, `code` and `message` for the Sanar team.
+
+For a `timeout`, read the `message` before you report it. "Could not join the call within 30 seconds" means the device did not reach the call servers: ask about the network first, as in the row above and in "Calls fail on a company network, a VPN or a proxy" in the troubleshooting reference. Neither the doctor nor `diagnose()` checks the network, so list it under "Could not check" unless the developer repeated the call on mobile data. "Joined the call, but the doctor did not join within 30 seconds" means the doctor never appeared.
 
 ## 6. The report
 
@@ -154,7 +157,7 @@ Passed
 - <one line for each area that is fine: versions, dependencies, iOS, Android, connect, placement, permissions>
 
 Could not check
-- <for example: the running app, a real incoming call, the release build, the backend>
+- <for example: the running app, a real incoming call, the device's network, the release build, the backend>
 ```
 
 How to sort the findings:

@@ -893,6 +893,13 @@ test('e2e fixes: stale wording is gone and the safety statements stay', () => {
     assert.ok(read(name).includes('RCT_NEW_ARCH_ENABLED=0'), `${name}: pod install with the New Architecture off`);
   }
 
+  // React Native: a call that rings but cannot join is checked against the device's network first.
+  assert.ok(rnTroubleshooting.includes('### Calls fail on a company network, a VPN or a proxy'), 'rn-troubleshooting.md has the restricted network entry');
+  for (const name of ['rn-troubleshooting.md', 'rn-diagnose.md', 'rn-component-sanarrtc.md', '../SKILL.md']) {
+    assert.ok(readText(join(REFS_DIR, name)).includes('Could not join the call within 30 seconds'), `${name}: quotes the SDK's "could not join" timeout message`);
+  }
+  assert.ok(rnTroubleshooting.includes('Do not change the app\'s code, its network settings or the SDK for this'), 'a network block is not fixed in the app');
+
   // iOS: a base configuration that does not exist fails the build, so the wrapper is recommended.
   const iosConnect = read('ios-connect.md');
   assert.ok(iosConnect.includes('SanarBase.xcconfig'), 'ios-connect.md recommends the committed wrapper');

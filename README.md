@@ -25,6 +25,7 @@ Ask the agent to diagnose your SanarKit setup. It changes nothing until you have
 - If you agree, it checks the running app with `SanarKit.diagnose()` and the SDK's `[SanarKit]` console logs, and removes its temporary code afterwards.
 - On iOS and Android, which have no doctor command, it checks the same areas from the SDK's references.
 - It reports each finding with its evidence and fix, what passed, and what it could not check, such as a real incoming call. Then it asks which findings to fix.
+- When a call rings but does not connect, it asks about the device's network. A company proxy, a VPN or a firewall can block the call, and no check in the project can see that.
 
 ### Fix a misplaced component
 
@@ -121,7 +122,7 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 ## SDK versions covered
 
-Skill version 1.2.0.
+Skill version 1.2.1.
 
 | SDK | Version the references were written against |
 | --- | --- |

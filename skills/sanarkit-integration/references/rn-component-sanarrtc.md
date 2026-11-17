@@ -152,7 +152,7 @@ Since 3.1.0. `onError` receives `{ stage, code?, message }` when an accepted cal
 | `engine_init` | The call engine (Agora) could not be started. `code` is the Agora error code when there is one |
 | `join` | Agora rejected the join request. `code` is the Agora error code when there is one |
 | `connection` | Agora reported a failed connection, before or during the call, for example an invalid or expired token. `code` is Agora's reason |
-| `timeout` | The doctor did not appear in the call within 30 seconds of accepting |
+| `timeout` | The call did not connect within 30 seconds of accepting. The `message` says which side: "Could not join the call within 30 seconds" (the member's device did not reach the call servers, which a company proxy, a VPN or a firewall on its network can cause), or "Joined the call, but the doctor did not join within 30 seconds" |
 | `callback` | One of the app's own `SanarRTC` callbacks threw. The SDK catches it and the call continues, with no `CALL_FAILED` |
 
 The types `SanarRTCError` and `SanarRTCErrorStage` are in `@maren-sa/react-native-sanarkit/lib/Types`. They are not exported from the package root, so the example above writes the shape inline. A `payload`, `join` or `connection` failure usually comes from the call Sanar sent, not from the app: report the stage, code and message to the developer for the Sanar team.

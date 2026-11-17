@@ -323,10 +323,24 @@ SDK 3.1.0 shows "Call could not be connected" (or "Call disconnected" during a c
 | `engine_init` | The call engine did not start. Check that `react-native-agora` is installed at `^4.5.3`, that the pods were installed and the app was rebuilt, and that `sanar-rtc` is gone. The doctor checks all three |
 | `join` | Agora rejected the join. Report `code` and `message` for the Sanar team |
 | `connection` | The connection failed before or during the call, for example an invalid or expired token, or a lost network. Check the device's network, then report `code` for the Sanar team |
-| `timeout` | The doctor did not appear within 30 seconds of Accept. Check the network on both sides, and that the doctor's side did not end the call |
+| `timeout` | The call did not connect within 30 seconds of Accept. Read the `message`. "Could not join the call within 30 seconds": the member's device did not reach the call servers, so check its network first, see "Calls fail on a company network, a VPN or a proxy" below. "Joined the call, but the doctor did not join within 30 seconds": the doctor never appeared, so ask for the call to be started again |
 | `callback` | One of the app's own `SanarRTC` callbacks threw. The call continues. Fix the callback |
 
 Do not add a retry or the app's own failure screen unasked. The SDK already shows one and ends the call for the doctor.
+
+### Calls fail on a company network, a VPN or a proxy
+
+The ringer appears and the member accepts. After 30 seconds the member sees "Call could not be connected", and `onError` receives `timeout` with the message "Could not join the call within 30 seconds". The `[SanarKit][RTC]` line reads `Call failed (timeout): Could not join the call within 30 seconds`.
+
+A call uses two connections. The ringer arrives over the SDK's connection to Sanar, which is ordinary web traffic (HTTPS). The audio and video travel on a separate real-time connection to Agora, the call provider. A network that filters traffic can let the first through and block the second: a company proxy, a VPN, a secure web gateway, or a firewall that inspects traffic. A simulator or an emulator uses the network of the computer it runs on, so a company laptop brings the same limits.
+
+You cannot see the network from the project, and neither the doctor nor `diagnose()` checks it. So:
+
+1. **Ask the developer** which network the device or the computer was on: office Wi-Fi, a VPN, a proxy or a security app, and whether the call ran on a simulator, an emulator or a real phone.
+2. **Ask them to repeat the call** on a real phone on mobile data, with Wi-Fi off and any VPN or security app turned off. If the call connects, the network is the cause.
+3. **Report it as a network finding, not an app finding.** The fix belongs to the team that manages the network: exclude the app's call traffic from the proxy or VPN, or allow it by following Agora's firewall requirements (`https://docs.agora.io/en/introduction/firewall`). Traffic inspection (SSL or TLS inspection) can also break the call connection, so the call traffic needs to be excluded from it too.
+
+Do not change the app's code, its network settings or the SDK for this, and do not add a retry. If the call also fails on mobile data, the network is not the cause: collect what "Still stuck" lists for the Sanar team.
 
 ### The call screen is cropped or offset
 
@@ -389,7 +403,7 @@ Tell the developer to contact the Sanar team and to include:
 - The SDK version (3.1.2), the React Native version, the platform and OS version, and the environment that was set.
 - What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`).
 - The output of `npx sanarkit-setup --doctor`, and the report from `SanarKit.diagnose()`.
-- For a failed call, the `stage`, `code` and `message` that `onError` received.
+- For a failed call, the `stage`, `code` and `message` that `onError` received, and the network the device was on: Wi-Fi or mobile data, and whether a VPN or a proxy was in use.
 - The `message` that `connect` returned, if it did.
 
 Never put the client ID, a member's details or a token in a message, a ticket or your own output.
