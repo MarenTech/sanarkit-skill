@@ -26,7 +26,7 @@ Fix what your integration caused. For everything else, tell the developer the fi
 
 ### In the running app: `SanarKit.setDebug` and `SanarKit.diagnose()`
 
-- `SanarKit.setDebug(true)` (or `__DEV__`), called once at startup, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]`, `[SanarKit][Agora]`, `[SanarKit][Socket]`, `[SanarKit][Permissions]`, `[SanarKit][Layout]` or `[SanarKit][Diagnose]`.
+- `SanarKit.setDebug(true)` (or `__DEV__`), called once at startup, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]`, `[SanarKit][Agora]`, `[SanarKit][Socket]`, `[SanarKit][SDK]`, `[SanarKit][Permissions]`, `[SanarKit][Layout]` or `[SanarKit][Diagnose]`.
 - `await SanarKit.diagnose()` checks the running app without prompting, logs each finding, and returns `{ ok, errors, warnings, checks: [{ id, status, message, fix? }], timestamp }`. `status` is `ok`, `info`, `warn` or `error`. With `setDebug(true)` called before `SanarRTC` is enabled, it also runs by itself about 3 seconds after `SanarRTC` is first enabled.
 
 | Check `id` | What it tells you |
@@ -366,9 +366,52 @@ If the prompt never appears, or the app closes when a call rings:
 
 `isFullscreen={true}` expands a minimized call, but the SDK only reacts when the value changes. If it was already `true` when the member minimized the call, set it to `false`, then to `true`. Setting it to `false` does not minimize a call.
 
+### An error, or `'disconnect'`, right after a call ends
+
+The member or the doctor ends a call, and straight away the app shows its own connection error, `onCallStatusChange` reports `'disconnect'`, or the next call never rings. The SDK does not end the session when a call ends, so look for app code that does:
+
+- A screen that holds the call, or `SanarRTC`, closes when the call ends, and its cleanup calls `SanarKit.disconnect()`, for example `return () => SanarKit.disconnect()` in a `useEffect`. Older SDK READMEs showed this cleanup in their example, so it is often copied into a screen.
+- The app's `onCallStatusChange` handler calls `SanarKit.disconnect()`, or sets `enable` to `false`, on `CALL_END_USER`, `CALL_END_PROVIDER` or `'disconnect'`.
+- `SanarRTC` is rendered only inside a call screen, so it unmounts when the call ends, and no call rings until it mounts again. Unmounting alone does not end the session: when it remounts with `enable` `true`, it listens on the same connection. It often comes with one of the causes above in the same screen's cleanup.
+
+`disconnect` clears the session and closes the connection, and nothing opens it again: no call rings until the app sets `enable` to `false`, calls `connect` again, and sets `enable` back to `true` after it succeeds. The error the member sees comes from the app: from how it handles `'disconnect'`, or from a later `connect` or Sanar component that finds no session.
+
+**Confirm it from the logs.** Ask the developer for the console lines from just before the call ended to just after the error, in order and with timestamps, including the app's own lines (such as its `onCallStatusChange` logs). Then read them against this table:
+
+| SDK | What the lines show | What it means |
+| --- | --- | --- |
+| 3.0.1 and earlier | `Disconnected with Sanar` | `SanarKit.disconnect()` ran. Only that function prints it, also when `enable` turns `false`. Look for this line: a bare `disconnected` line may also appear, for any reason, and may be missing from a filtered log |
+| 3.1.0 and later | `[SanarKit][SDK] Disconnected from SanarKit` | `SanarKit.disconnect()` ran |
+| 3.1.0 and later | `[SanarKit][RTC] SanarRTC is disabled; closing the SanarKit connection` (or, during a call, the warning `[SanarKit][RTC] SanarRTC was disabled during an active call; the call is reset and the SanarKit connection is closed.`), then `[SanarKit][SDK] Disconnected from SanarKit` | `enable` turned `false`. `SanarRTC` stops listening first, so the app gets no `'disconnect'` and there is no `[SanarKit][Socket]` line |
+| 3.1.0 and later | `[SanarKit][Socket] Disconnected from Sanar messaging` with reason `io client disconnect`, then `[SanarKit][SDK] Disconnected from SanarKit` | The app called `SanarKit.disconnect()` while `SanarRTC` was listening. The app gets `'disconnect'` |
+| 3.1.0 and later | `[SanarKit][Socket] Disconnected from Sanar messaging` warning with reason `transport close`, `transport error` or `ping timeout` | The network dropped. The session stays, and the connection reconnects by itself |
+| 3.1.0 and later | `[SanarKit][Socket] Disconnected from Sanar messaging` warning with reason `io server disconnect` | Sanar's server closed the connection. It does not reconnect by itself. Report it for the Sanar team |
+
+On 3.1.0 the `[SanarKit][SDK]` line, the `SanarRTC is disabled` line and the `io client disconnect` line are info entries: the console prints them only with `SanarKit.setDebug(true)`, and `SanarKit.setLogger` always receives them. Warnings, such as `SanarRTC was disabled during an active call`, print without debug.
+
+A line from `SanarKit.disconnect()` (`Disconnected with Sanar`, `[SanarKit][SDK] Disconnected from SanarKit`) or a `SanarRTC` disabled line shortly after the `CALL_END_USER` or `CALL_END_PROVIDER` line means the app's call-end handling ended the session. Confirm it in the code before you report it. A `'disconnect'` status, or a socket warning with a network or server reason, at the same moment does not prove it: the network or the server can close the connection as a call ends.
+
+Then find the code: search for `SanarKit.disconnect(`, for what `SanarRTC`'s `enable` follows, and for the `onCallStatusChange` handler, and read what each does when a call ends.
+
+**Fix.** Ask before you change it, and keep the rest of the app's flow:
+
+1. Keep the session for as long as the member is signed in. Call `connect` once at the app root, and `SanarKit.disconnect()` only at sign-out or when the member changes. Remove it from screen cleanups and from the call-status handler.
+2. Render `SanarRTC` once at the root, always mounted, with `enable` tied to the connected flag. Do not set `enable` to `false` when a call ends. If `SanarRTC` is in a call screen, follow the fix-placement reference.
+3. Do not show members an error for `'disconnect'`, `CALL_END_USER` or `CALL_END_PROVIDER`. Log them. From 3.1.0, a failed call is `CALL_FAILED` with the details in `onError`, and the SDK shows its own failure screen.
+4. If the app must end the session on purpose, it starts a new one before the next call can ring: set `enable` to `false`, call `connect`, and set `enable` back to `true` after it resolves with `status: true`. `SanarRTC` attaches its listeners only when `enable` changes, so a `connect` while `enable` stays `true` leaves it on the closed connection.
+
+**Verify.** End a call. No `Disconnected with Sanar` (3.0.1) or `[SanarKit][SDK] Disconnected from SanarKit` (3.1.0) line appears until sign-out, the app shows no error, and on 3.1.0 `SanarKit.diagnose()` still reports `session` and `sanar_rtc_listening` as ok. Only a doctor can start the next call, so say whether it was tested.
+
 ### `onCallStatusChange` reports `'disconnect'`
 
-The real-time connection to Sanar closed. It does not mean a call ended. Either `SanarRTC`'s `enable` was set to `false` (which calls `SanarKit.disconnect()`), or the connection dropped, for example when the network was lost. Do not call `SanarKit.connect` just because you saw `'disconnect'`: a second `connect` does not close the first connection. The messaging connection reconnects by itself, and the `socket` check of `diagnose()` shows whether it is up. Whether calls come back after that without any action from the app is to confirm.
+The real-time connection to Sanar closed. It is not a call status and not a call failure, so the app must not show members an error for it. It has these causes, and the log table in the entry above tells them apart:
+
+- **The app called `SanarKit.disconnect()`**, for example in a screen's cleanup or when a call ended. The session is cleared and the connection stays closed. If it happened right after a call ended, see the entry above.
+- **The app set `SanarRTC`'s `enable` to `false`.** That calls `SanarKit.disconnect()` too. On 3.0.1 and earlier the app still gets `'disconnect'`. From 3.1.0, `SanarRTC` stops listening first, so it does not.
+- **The network dropped.** The session stays, and the connection reconnects by itself. Whether calls come back after that without any action from the app is to confirm.
+- **Sanar's server closed the connection** (reason `io server disconnect` on 3.1.0). It does not reconnect by itself. Report it for the Sanar team.
+
+After the app ended the session, start a new one: set `enable` to `false`, call `SanarKit.connect`, and set `enable` back to `true` after it resolves with `status: true`. After a network drop, do not call `connect` just because you saw `'disconnect'`: a second `connect` does not close the first connection, and `SanarRTC` only attaches its listeners again when `enable` changes. The `socket` check of `diagnose()` shows whether the connection is back.
 
 ### `SanarRTC` fails when a callback is left out
 
@@ -398,10 +441,10 @@ With that mock, the template's `App` test passed in the end-to-end run (React Na
 
 ## Still stuck
 
-Tell the developer to contact the Sanar team and to include:
+Tell the developer to contact the Sanar team and to include the items below. The diagnose reference, "Share with the Sanar team", has a report layout that collects them, and you can prepare it for the developer.
 
-- The SDK version (3.1.2), the React Native version, the platform and OS version, and the environment that was set.
-- What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`).
+- The installed SDK version, the React Native version, the platform and OS version, and the environment that was set.
+- What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`). Include the app's own lines around the problem, in order and with timestamps: the order shows what caused what.
 - The output of `npx sanarkit-setup --doctor`, and the report from `SanarKit.diagnose()`.
 - For a failed call, the `stage`, `code` and `message` that `onError` received, and the network the device was on: Wi-Fi or mobile data, and whether a VPN or a proxy was in use.
 - The `message` that `connect` returned, if it did.

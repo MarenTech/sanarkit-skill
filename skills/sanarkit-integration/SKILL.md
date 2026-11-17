@@ -1,8 +1,8 @@
 ---
 name: sanarkit-integration
-description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
+description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. It can prepare a redacted report to send to the Sanar team. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, to report a SanarKit problem to Sanar, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
   sdk-versions: "react-native 3.1.2; ios 2.1.1; android 2.1.1"
 ---
 
@@ -15,7 +15,7 @@ The skill has four tasks. Pick the one the developer asked for:
 | The developer wants | Do this |
 | --- | --- |
 | SanarKit added to the app, or another Sanar component added | The Workflow below, steps 1 to 10 |
-| An existing integration checked, diagnosed or debugged, or reports a problem such as "the ringer shows but the call never opens" | "Diagnose an existing integration" below. It changes nothing until the developer has seen the report |
+| An existing integration checked, diagnosed or debugged, or reports a problem such as "the ringer shows but the call never opens" or "an error right after a call ends", or wants a report to send to the Sanar team | "Diagnose an existing integration" below. It changes nothing until the developer has seen the report |
 | A misplaced `SanarRTC` or other Sanar component fixed | "Fix a misplaced component" below |
 | SanarKit upgraded to the current version | "Upgrade an existing integration" below. It asks before it changes anything |
 
@@ -162,9 +162,11 @@ Use this when SanarKit is already in the app and the developer wants it checked 
    - With the developer's agreement, check the running app with `SanarKit.setDebug(true)` and `SanarKit.diagnose()`, and read the `[SanarKit]` console lines. Remove the temporary code afterwards.
    - For a reported problem, match the symptom to its cause in the reference, and confirm it with evidence.
    - No check sees the device's network. When a call rings but fails with `timeout` and "Could not join the call within 30 seconds", ask whether the device or the computer was on a company network, a VPN or a proxy, and have the call repeated on a real phone on mobile data before you look for a fault in the app.
+   - The SDK does not end the session when a call ends. When the app shows an error, `onCallStatusChange` reports `'disconnect'`, or the next call does not ring right after a call ends, ask for the console lines around the end of the call, with timestamps, and look for app code that calls `SanarKit.disconnect()` or sets `enable` to `false` at that moment. `'disconnect'` is never an error to show members.
 3. **iOS and Android:** these SDKs have no doctor command. Use the SDK's installation, connect and troubleshooting references as the checklist: the SDK version, the camera and microphone permissions, the environment and where the client ID lives, when `connect` runs and how its result and errors are handled, and how each view or screen is opened.
-4. **Report** every finding with its evidence (a file and line, a doctor line or a console line) and its fix, most serious first, then what passed and what you could not check. Never include the client ID, a token or member details. `references/rn-diagnose.md` has the report layout.
+4. **Report** every finding with its evidence (a file and line, a doctor line or a console line) and its fix, most serious first, then what passed and what you could not check. Never include the client ID, a token or member details. On React Native, `references/rn-diagnose.md` has the report layout.
 5. **Ask which findings to fix.** Fix only those. For a misplaced component, continue with the next section.
+6. **Share with the Sanar team** when the developer asks, when the evidence points at Sanar's side, or when you found no cause: prepare a support report as one block the developer can paste into a message to Sanar. On React Native, use the layout and rules in `references/rn-diagnose.md` (step 7). On iOS and Android, give the SDK version, the platform and OS version, the environment, what happened and what was expected, the console lines around the problem in order with timestamps, and your findings with their evidence. On every SDK, redact the client ID, every token and the member's personal details, also from the app's own log lines, and keep call identifiers.
 
 ## Fix a misplaced component
 

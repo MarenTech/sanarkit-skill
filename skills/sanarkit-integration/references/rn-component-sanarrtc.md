@@ -71,10 +71,10 @@ export default function SanarCalls({ expandCall = false, onMinimized }: SanarCal
           case 'CALL_INITIATED': // a doctor is calling
           case 'CALL_ACCEPTED': // the member accepted
           case 'CALL_REJECTED': // the member declined
-          case 'CALL_END_USER': // the member ended the call
-          case 'CALL_END_PROVIDER': // the doctor ended the call
+          case 'CALL_END_USER': // the member ended the call; keep the session, do not disconnect here
+          case 'CALL_END_PROVIDER': // the doctor ended the call; keep the session, do not disconnect here
           case 'CALL_FAILED': // an accepted call could not be connected, or dropped; onError has the details
-          case 'disconnect': // the connection to Sanar closed
+          case 'disconnect': // the connection to Sanar closed; not an error, so log it and show the member nothing
             break; // update the app's own state here if the developer asked for it
         }
       }}
@@ -140,7 +140,7 @@ const [expandCall, setExpandCall] = useState(false);
 | `CALL_END_USER` | The member ended the call |
 | `CALL_END_PROVIDER` | The doctor's side ended the call |
 | `CALL_FAILED` | Since 3.1.0. An accepted call could not be connected, or its connection failed during the call. The member sees the failure screen, and `onError` receives the details |
-| `'disconnect'` | Not a call status. The real-time connection to Sanar closed, so calls cannot arrive until it reconnects. Setting `enable` to `false` closes it, so this can fire after `SanarRTC` is turned off |
+| `'disconnect'` | Not a call status, and not an error: do not show members an error for it. The real-time connection to Sanar closed, so calls cannot arrive until it is open again. The app closes it with `SanarKit.disconnect()` or with `enable={false}` (then it stays closed), or the network dropped (then it reconnects by itself). Seen right after `CALL_END_USER` or `CALL_END_PROVIDER`, suspect that the app ended the session when the call ended, and confirm it from the logs and the code: see "An error, or `'disconnect'`, right after a call ends" in the troubleshooting reference |
 
 ## Call failures (`onError`)
 
@@ -161,7 +161,7 @@ The types `SanarRTCError` and `SanarRTCErrorStage` are in `@maren-sa/react-nativ
 
 Since 3.1.0. Use these while integrating, and offer them to the developer for production evidence. Do not add a logger or a diagnostics screen unasked.
 
-- **`SanarKit.setDebug(__DEV__)`**, called once at startup next to `setEnvironment`, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]` (call lifecycle and placement warnings), `[SanarKit][Agora]`, `[SanarKit][Socket]`, `[SanarKit][Permissions]`, `[SanarKit][Layout]` and `[SanarKit][Diagnose]`.
+- **`SanarKit.setDebug(__DEV__)`**, called once at startup next to `setEnvironment`, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]` (call lifecycle and placement warnings), `[SanarKit][Agora]`, `[SanarKit][Socket]` (the messaging connection, with the reason when it closes), `[SanarKit][SDK]` (for example `Disconnected from SanarKit` when `SanarKit.disconnect()` runs), `[SanarKit][Permissions]`, `[SanarKit][Layout]` and `[SanarKit][Diagnose]`.
 - **`SanarKit.setLogger(fn)`** receives every log entry, `{ level, tag, message, data?, timestamp }`, whatever `setDebug` is set to, so the app can forward them to its crash reporter. Pass `null` to remove it. The SDK leaves the call token, the session token and the Agora app ID out of its entries. Messages from Agora and from the app's own callbacks are passed on as they are.
 - **`await SanarKit.diagnose()`** checks the running app without prompting for anything: the session, the messaging socket, that `SanarRTC` is mounted once, is listening and covers the screen, and the permission status. It logs each finding and returns `{ ok, errors, warnings, checks: [{ id, status, message, fix? }], timestamp }`. With `setDebug(true)` called before `SanarRTC` is enabled, it runs by itself about 3 seconds after `SanarRTC` is first enabled.
 
@@ -187,4 +187,5 @@ While a video call is connected, the member can minimize it with the chat button
 - `onCallStatusChange` and `onError` are passed, and `CALL_FAILED` is handled or deliberately ignored.
 - `npx sanarkit-setup --doctor` reports `SanarRTC` rendered once, and no error. With `SanarKit.setDebug(true)`, the console shows no `[SanarKit][RTC]` or `[SanarKit][Layout]` warning after `enable` becomes `true`.
 - With a valid client ID, after `connect` succeeds `enable` becomes `true`. A call started by a doctor shows the ringer. Only a doctor can start a call, so you will normally not be able to test this yourself. Say so, and say that you did not verify the ringer or the call.
+- After a call ends, the session stays: nothing calls `SanarKit.disconnect()` or sets `enable` to `false`, and the app shows no error.
 - After sign-out, `SanarKit.disconnect()` has run and `enable` is `false`.

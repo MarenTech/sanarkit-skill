@@ -900,6 +900,21 @@ test('e2e fixes: stale wording is gone and the safety statements stay', () => {
   }
   assert.ok(rnTroubleshooting.includes('Do not change the app\'s code, its network settings or the SDK for this'), 'a network block is not fixed in the app');
 
+  // React Native: an error or 'disconnect' right after a call ends is traced to the app ending the session.
+  assert.ok(rnTroubleshooting.includes("### An error, or `'disconnect'`, right after a call ends"), 'rn-troubleshooting.md has the call-end disconnect entry');
+  for (const line of ['Disconnected with Sanar', '[SanarKit][SDK] Disconnected from SanarKit', 'io client disconnect', 'io server disconnect']) {
+    assert.ok(rnTroubleshooting.includes(line), `rn-troubleshooting.md reads the "${line}" log line`);
+  }
+  assert.ok(rnTroubleshooting.includes("Do not show members an error for `'disconnect'`"), "'disconnect' is not shown to members as an error");
+  assert.ok(!rnTroubleshooting.includes('The messaging connection reconnects by itself'), 'an app-initiated disconnect does not reconnect by itself');
+  const callEndEntry = rnTroubleshooting.slice(rnTroubleshooting.indexOf("### An error, or `'disconnect'`, right after a call ends"), rnTroubleshooting.indexOf("### `onCallStatusChange` reports `'disconnect'`"));
+  assert.match(callEndEntry, /set `enable` to `false`, call `connect`, and set `enable` back to `true`/, 'a new session turns enable off and on again');
+  const rnDiagnose = read('rn-diagnose.md');
+  assert.ok(rnDiagnose.includes('## 7. Share with the Sanar team'), 'rn-diagnose.md has the support report');
+  assert.ok(rnDiagnose.includes('Redact the app\'s own lines too'), 'the support report redacts the app\'s own log lines');
+  assert.ok(rnDiagnose.includes('right after a call ends'), 'rn-diagnose.md has the call-end symptom');
+  assert.ok(readText(SKILL_MD).includes('The SDK does not end the session when a call ends'), 'SKILL.md covers the call-end disconnect');
+
   // iOS: a base configuration that does not exist fails the build, so the wrapper is recommended.
   const iosConnect = read('ios-connect.md');
   assert.ok(iosConnect.includes('SanarBase.xcconfig'), 'ios-connect.md recommends the committed wrapper');

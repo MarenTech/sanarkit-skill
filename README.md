@@ -26,6 +26,8 @@ Ask the agent to diagnose your SanarKit setup. It changes nothing until you have
 - On iOS and Android, which have no doctor command, it checks the same areas from the SDK's references.
 - It reports each finding with its evidence and fix, what passed, and what it could not check, such as a real incoming call. Then it asks which findings to fix.
 - When a call rings but does not connect, it asks about the device's network. A company proxy, a VPN or a firewall can block the call, and no check in the project can see that.
+- When the app shows an error, or `onCallStatusChange` reports `'disconnect'`, right after a call ends, it reads the console lines around the end of the call and finds the app code that ended the Sanar session, such as a `SanarKit.disconnect()` in a screen's cleanup.
+- If you ask, or if the cause is on Sanar's side or not found, it prepares a support report you can send to the Sanar team: versions, what happened, a timeline of the console lines, what the SDK reported and its findings. It redacts the client ID, tokens and member details, also from your app's own log lines.
 
 ### Fix a misplaced component
 
@@ -106,6 +108,14 @@ Debug a problem:
 
 > Use the sanarkit-integration skill to find out why the incoming-call ringer shows but no call screen appears after the member accepts.
 
+An error right after a call ends (paste your console lines from the end of the call, with timestamps):
+
+> Use the sanarkit-integration skill to find out why the app shows a connection error, or onCallStatusChange reports 'disconnect', right after a video call ends. Here are the console lines from the end of the call: [paste them].
+
+Prepare a report for the Sanar team:
+
+> Use the sanarkit-integration skill to diagnose this problem and prepare a support report I can send to the Sanar team: [describe what happens]. Do not change anything.
+
 Fix a misplaced component:
 
 > Use the sanarkit-integration skill to check where SanarRTC is rendered in this app and move it to the recommended place.
@@ -122,7 +132,7 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 ## SDK versions covered
 
-Skill version 1.2.1.
+Skill version 1.2.2.
 
 | SDK | Version the references were written against |
 | --- | --- |

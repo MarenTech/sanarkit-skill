@@ -1,6 +1,6 @@
 # Diagnose an existing React Native integration
 
-Use this when the app already has SanarKit and the developer asks to check, diagnose, audit or debug it, or reports that something does not work (no ringer, a blank screen after Accept, a call that fails, a cropped call screen, a component that does not open).
+Use this when the app already has SanarKit and the developer asks to check, diagnose, audit or debug it, or reports that something does not work (no ringer, a blank screen after Accept, a call that fails, an error right after a call ends, a cropped call screen, a component that does not open). It also covers preparing a report the developer can send to the Sanar team (step 7).
 
 The goal is a report: what is wrong, the evidence, and the fix. Diagnosing changes nothing in the app. Fix only after the developer has seen the report and said which findings to fix.
 
@@ -18,7 +18,7 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 Read the installed version from `node_modules/@maren-sa/react-native-sanarkit/package.json` (in the app, or hoisted to the monorepo root), and the `react-native` and `react` versions.
 
 - **3.1.0 or later:** the doctor command, `SanarKit.diagnose()`, the SDK logs and `onError` exist. Carry on.
-- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.2, because it also fixes the blank screen after Accept. Ask before you upgrade.
+- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.2, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
 - A `sanar-rtc` dependency, or an import from `'react-native-sanarkit'` without the `@maren-sa/` scope, means a 2.x integration. Report it and stop: this skill does not cover 2.x.
 
 ## 2. The doctor (project files)
@@ -73,6 +73,9 @@ Then read each file it lists and check these. The right-hand column is the findi
 | `SanarRTC`'s `enable` is a flag that becomes `true` only after `connect` resolved with `status: true` | A constant `true`, or a flag set before `connect`: `SanarRTC` is not listening, so calls never ring |
 | `enable` is never `false` or left out while members use other Sanar components | `enable={false}` calls `SanarKit.disconnect()` and ends the session for all of them |
 | `connect` is not called again while `enable` stays `true` | `SanarRTC` listens on the old connection, so new calls do not ring |
+| Nothing ends the session when a call ends: no `SanarKit.disconnect()` and no `enable` set to `false` on `CALL_END_USER`, `CALL_END_PROVIDER` or `'disconnect'` | The session ends after every call, so the next call does not ring until `connect` runs again |
+| `SanarRTC` does not unmount with a call screen | No call rings while it is unmounted. The session stays |
+| The app shows members no error for `'disconnect'`, `CALL_END_USER` or `CALL_END_PROVIDER` | Members see a connection error after a call that ended normally |
 | `SanarRTC` gets `onCallStatusChange` and `onError` | Call failures are invisible to the app |
 | `RTCViewStatus` is imported with `import type` only | It is undefined at run time |
 | Each `SKDashboard`, `SKService`, `SKAppointments`, `SKConsultation` and `ITCBooking` gets `enable` from state, opens only after `connect` succeeded, and sets `enable` back to `false` in `onEndFlow` | The component opens once and never again, or closes at once |
@@ -106,7 +109,7 @@ If the developer declines the temporary code, or nobody can run the app now, ski
 | --- | --- | --- |
 | `environment` | A release build is not on `production` | Set the environment from the build configuration |
 | `session` | `connect` has not succeeded | Check the client ID, the environment and the member fields, and enable components only after `connect` |
-| `socket` | The connection that delivers calls is down | Check the network. It reconnects by itself |
+| `socket` | The connection that delivers calls is down | Check the network: after a drop it reconnects by itself. If the app closed it (`SanarKit.disconnect()` or `enable={false}`) or Sanar's server did (reason `io server disconnect`), it stays down until a new session: `enable` to `false`, `connect`, then `enable` to `true` |
 | `sanar_rtc_mounted` | `SanarRTC` is mounted zero times, or more than once. Zero is expected in an app that does not use video calls | Move it to the root, and keep one (the fix-placement reference) |
 | `sanar_rtc_listening` | `enable` is `false`, was `true` before `connect` succeeded, or `connect` ran again while it stayed `true` | Tie `enable` to the connected flag. To reconnect: `enable` to `false`, `connect`, then `enable` to `true` |
 | `sanar_rtc_layout` | `SanarRTC`'s area does not cover the window. The message gives the measured size and position | Move it out of the padded or partial container (the fix-placement reference) |
@@ -131,6 +134,7 @@ Match the symptom, then confirm it with steps 2 to 4. The troubleshooting refere
 | The call screen is behind something | The app draws a `Modal` or a native overlay above it. The SDK cannot detect this | Read what the app renders after or above `SanarRTC` |
 | The phone rings twice, or two call screens | More than one `SanarRTC` | The doctor's Placement group, `sanar_rtc_mounted` |
 | Every Sanar screen closes at once | No session: `connect` failed, or `disconnect` ran (also through `enable={false}`) | `session`, and the code review |
+| An error, or `'disconnect'`, right after a call ends, or the next call does not ring | The app ends the session when the call ends: `SanarKit.disconnect()` in a screen's cleanup or in the call-status handler, or `enable` turned `false`. Or `SanarRTC` unmounted with a call screen, which stops calls without ending the session. The member sees the app's own error, not an SDK error | The console lines around the end of the call, with timestamps: `Disconnected with Sanar` (3.0.1) or `[SanarKit][SDK] Disconnected from SanarKit` (3.1.0) shortly after `CALL_END_USER` or `CALL_END_PROVIDER`. Then the code review. The troubleshooting entry "An error, or `'disconnect'`, right after a call ends" reads each line |
 | The permission prompt never shows, or the app closes when a call rings | Missing `Info.plist` keys, `Podfile` setup or manifest permissions | The doctor's iOS and Android groups |
 
 A `payload`, `join` or `connection` failure with a correct setup usually comes from the call itself, not from the app. Report the `stage`, `code` and `message` for the Sanar team.
@@ -169,3 +173,45 @@ How to sort the findings:
 Then ask which findings to fix. Fix those, plus what a chosen fix cannot work without, and name that in your plan. Offer the rest again at the end instead of fixing it. For a misplaced `SanarRTC` or another component, follow the fix-placement reference. For anything else, the fix is in the reference for that area (installation, permissions, connect or the component).
 
 What no check can verify: the call token, the Agora setup on Sanar's side, the webhook and push notification setup, and whether a doctor's call reaches the device. Only a doctor can start a call, so say plainly that the ringer and the call were not tested unless the developer tested them.
+
+## 7. Share with the Sanar team
+
+Prepare a support report when the developer asks for one, when the evidence points at Sanar's side (a `payload`, `join` or `connection` failure with a correct setup, an `io server disconnect`, the call token or the backend), or when you found no cause. When the cause is in the app, say so and give the fix: the report is then only needed if the developer wants the Sanar team to confirm it.
+
+Fill it from what you collected in steps 1 to 5. Write "unknown" or "not run" for what you do not have, and do not guess:
+
+```text
+SanarKit support report
+Date: <date and time of the problem, with time zone>
+SDK <version>, React Native <version>, React <version>, New Architecture <on/off>
+Platform: <iOS or Android> <OS version>, <real device or simulator/emulator>
+Environment: <development or production>
+Network: <Wi-Fi or mobile data>, VPN or proxy: <yes, no or unknown>
+
+What happened
+<the symptom in one or two sentences, and the steps that lead to it>
+Expected: <what should have happened>
+How often: <every call, sometimes or once>, since <date or SDK version, if known>
+
+Timeline (console lines in order, with timestamps)
+<the app's own lines and the SDK's lines, from just before the problem to just after it>
+
+What the SDK reported
+- onError: <stage, code and message, or "none" or "not available (SDK 3.0.1 or earlier)">
+- connect: <status and message, if it failed>
+- Doctor: <errors and warnings, or "not run">
+- diagnose(): <the checks that were not ok, or "not run">
+
+Findings
+<each finding with its evidence, the cause if known, and what was ruled out>
+
+Call
+<sid and roomName of the call, from the [SanarKit] lines or the app's own logs, if one call must be looked at>
+```
+
+Rules for the report:
+
+- **Redact the app's own lines too.** The SDK's `[SanarKit]` entries leave out the tokens and the Agora app ID, but an app that logs the incoming call, `SanarKit.session` or the member can print them. Replace with `<redacted>`: the client ID, every token (the call `token`, the session token or `headerToken`, a `cmt` token), `providerId` (the Agora app ID), and the member's personal details (name, date of birth, document ID, phone number). Keep `sid` and `roomName`: the Sanar team needs them to find the call.
+- **Keep the timeline short.** Only the lines around the problem, in the order they appeared. Do not paste a whole log.
+- **Separate evidence from reading.** The timeline and the SDK reports are evidence. Put your reading of them under Findings.
+- **Hand it over as one block** the developer can paste into a message or a ticket to the Sanar team. Write it to a file only if the developer asks, keep that file out of git, and do not commit it.
