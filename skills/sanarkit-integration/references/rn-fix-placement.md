@@ -163,7 +163,7 @@ The call screen draws above its siblings. It cannot draw above a React Native `M
 ## Verify the fix
 
 1. `npx sanarkit-setup --doctor` (SDK 3.1.0 and later) prints "SanarRTC is rendered once" with the file and line that render it, and no Placement warning. Two things the doctor does that affect where you put the code:
-   - It counts every line that contains `<SanarRTC` in a file that imports it, comments included. Do not write `<SanarRTC` in a comment in that file.
+   - On SDK 3.1.0 it counts every line that contains `<SanarRTC` in a file that imports it, comments included, so a comment can be reported as a second usage. SDK 3.1.1 ignores comments. If the app stays on 3.1.0, do not write `<SanarRTC` in a comment in that file.
    - It warns for any file under a folder named `screens`, `pages` or `views`. Put a wrapper such as `SanarCalls` outside those folders.
 2. The app type-checks and builds. A move at the root does not need a native rebuild. If you cannot type-check or build here, say so, and name the lines you could not compile.
 3. If the app can run: with `SanarKit.setDebug(true)`, there is no `[SanarKit][Layout]` or `[SanarKit][RTC]` warning after `enable` becomes `true`, and `SanarKit.diagnose()` reports `sanar_rtc_mounted`, `sanar_rtc_listening` and `sanar_rtc_layout` as `ok`. Remove any temporary debug code afterwards.

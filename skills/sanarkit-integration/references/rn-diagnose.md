@@ -18,7 +18,7 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 Read the installed version from `node_modules/@maren-sa/react-native-sanarkit/package.json` (in the app, or hoisted to the monorepo root), and the `react-native` and `react` versions.
 
 - **3.1.0 or later:** the doctor command, `SanarKit.diagnose()`, the SDK logs and `onError` exist. Carry on.
-- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.0, because it also fixes the blank screen after Accept. Ask before you upgrade.
+- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.1, because it also fixes the blank screen after Accept. Ask before you upgrade.
 - A `sanar-rtc` dependency, or an import from `'react-native-sanarkit'` without the `@maren-sa/` scope, means a 2.x integration. Report it and stop: this skill does not cover 2.x.
 
 ## 2. The doctor (project files)
@@ -39,7 +39,7 @@ It reads the project and changes nothing. It prints findings in groups, with a f
 | Android | The `CAMERA`, `RECORD_AUDIO`, `INTERNET` and `MODIFY_AUDIO_SETTINGS` permissions (declared, or provided by `react-native-agora`, and not removed), `BLUETOOTH_CONNECT`, and the New Architecture setting (information) |
 | Placement | `<SanarRTC />` rendered not at all, more than once, or in a file under a `screens`, `pages` or `views` folder |
 
-Copy every error and warning into the report with its fix. Placement findings are warnings, not errors, so read the output even when the exit code is 0. "SanarRTC is not rendered anywhere" is expected in an app that does not use video calls.
+Copy every error and warning into the report with its fix. On SDK 3.1.0 the Placement check also counts `<SanarRTC` inside a comment, so open each line it names before you report a duplicate. SDK 3.1.1 ignores comments. Placement findings are warnings, not errors, so read the output even when the exit code is 0. "SanarRTC is not rendered anywhere" is expected in an app that does not use video calls.
 
 How to read some lines:
 

@@ -310,7 +310,7 @@ test('frontmatter follows the Agent Skills spec', () => {
     assert.equal(typeof value, 'string', `metadata.${key} is a string`);
   }
   const versions = fm.metadata['sdk-versions'];
-  for (const covered of ['react-native 3.1.0', 'ios 2.1.1', 'android 2.1.1']) {
+  for (const covered of ['react-native 3.1.1', 'ios 2.1.1', 'android 2.1.1']) {
     assert.ok(versions?.includes(covered), `metadata.sdk-versions mentions "${covered}"`);
   }
 });

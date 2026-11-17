@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.1.0 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.1.1 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -227,7 +227,7 @@ SanarKit declares `react-native-reanimated` (`>=3.1.0`) as a peer, and `npx sana
 3. If it is outside the list, **tell the developer and ask** before changing it. The app may need its Reanimated version for other reasons.
 4. If the developer agrees, install the `recommended` version with the app's manager, then rebuild the native projects (`cd ios && pod install`, and `cd android && ./gradlew clean`). A "mismatch between the JavaScript part and the native part" message usually means the native app was not rebuilt after the version changed.
 
-If React Native is not in the table (below 0.68 or above 0.81), say so: SanarKit 3.1.0 supports React Native 0.71 to 0.81. Ask the developer to contact Sanar for the Reanimated version, and do not guess.
+If React Native is not in the table (below 0.68 or above 0.81), say so: SanarKit 3.1.1 supports React Native 0.71 to 0.81. Ask the developer to contact Sanar for the Reanimated version, and do not guess.
 
 ## Connect and session
 
@@ -256,7 +256,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.1.0, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.1.1, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -393,7 +393,7 @@ With that mock, the template's `App` test passed in the end-to-end run (React Na
 
 Tell the developer to contact the Sanar team and to include:
 
-- The SDK version (3.1.0), the React Native version, the platform and OS version, and the environment that was set.
+- The SDK version (3.1.1), the React Native version, the platform and OS version, and the environment that was set.
 - What was expected and what happened, with the console lines from the SDK (the `[SanarKit]` lines, with `SanarKit.setDebug(true)`).
 - The output of `npx sanarkit-setup --doctor`, and the report from `SanarKit.diagnose()`.
 - For a failed call, the `stage`, `code` and `message` that `onError` received.
