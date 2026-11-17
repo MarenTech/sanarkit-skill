@@ -1,7 +1,8 @@
 ---
 name: sanarkit-integration
-description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, and moves a misplaced SanarRTC or other Sanar component to where it works. Use when the developer asks to add, integrate, set up, check, diagnose, debug or fix Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
+description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
+  version: "1.1.0"
   sdk-versions: "react-native 3.1.1; ios 2.1.1; android 2.1.1"
 ---
 
@@ -9,13 +10,14 @@ metadata:
 
 Add a SanarKit SDK to a developer's app and put one Sanar component on screen. This skill covers three separate SDKs: React Native, iOS and Android. They are different products with different APIs, so never carry code or names from one SDK over to another.
 
-The skill has three tasks. Pick the one the developer asked for:
+The skill has four tasks. Pick the one the developer asked for:
 
 | The developer wants | Do this |
 | --- | --- |
 | SanarKit added to the app, or another Sanar component added | The Workflow below, steps 1 to 10 |
 | An existing integration checked, diagnosed or debugged, or reports a problem such as "the ringer shows but the call never opens" | "Diagnose an existing integration" below. It changes nothing until the developer has seen the report |
 | A misplaced `SanarRTC` or other Sanar component fixed | "Fix a misplaced component" below |
+| SanarKit upgraded to the current version | "Upgrade an existing integration" below. It asks before it changes anything |
 
 If SanarKit is already installed and the developer did not say which they want, ask. Do not start an integration over an existing one.
 
@@ -174,6 +176,22 @@ On React Native, `SanarRTC` must be rendered once, at the app root, after the ap
 
 On iOS and Android there is no `SanarRTC`. A view or screen that opens in the wrong place is fixed from that view's or screen's reference.
 
+## Upgrade an existing integration
+
+Use this when the developer asks to upgrade, update or bump SanarKit, or agrees to an upgrade you recommended.
+
+1. **Read the installed version** (step 2 of the Workflow) and compare it with the Versions covered section. If it is already the covered version, say so and stop.
+2. **Tell the developer both versions and what the upgrade changes, and ask before you upgrade.** Check `git status` first.
+3. **React Native:** follow `references/rn-upgrade.md`. In short:
+   - Check that the app's React Native version is one the target supports. On 0.68 to 0.70 the app stays on SanarKit 2.1.x.
+   - Install the covered version from the npm registry with the app's own package manager, naming only the SDK, and leave the app's Reanimated version alone. Never use `--force` or `--legacy-peer-deps`.
+   - Run `npx sanarkit-setup` again (not on pnpm), then `npx sanarkit-setup --doctor`, and rebuild both platforms.
+   - An app on the old unscoped `react-native-sanarkit` package also needs its imports changed. The reference has the steps.
+   - Offer the features the new version adds, such as `onError` on `SanarRTC` and `SanarKit.setDebug(__DEV__)`. Add them only on a yes.
+   - If the doctor reports a misplaced `SanarRTC`, report it and offer the fix from the section above.
+4. **iOS and Android:** this skill covers 2.1.1 of both, which is their current version. For an older install, update the Swift Package requirement or replace the `.aar` as the installation reference describes, and rebuild. Ask before changing a deployment target.
+5. **Report** the version before and after, the files that changed, what behaves differently, the doctor's remaining findings, and what you could not verify, with the list of flows the developer should test with a real client ID.
+
 ## Rules
 
 - **Credentials:** never hardcode, commit or print the client ID, tokens or other credentials. The client ID is a per-client secret. On Android the `authToken` argument of `connect` is the client ID. Keep it in config that is not committed: the app's existing secret or environment mechanism, or a new file you add to `.gitignore`. Never read it back into the chat or a log.
@@ -209,6 +227,7 @@ Each file is linked here directly. Read only the ones for the detected SDK, and 
 | [rn-permissions.md](references/rn-permissions.md) | Adding the iOS and Android camera and microphone permissions |
 | [rn-diagnose.md](references/rn-diagnose.md) | Checking, diagnosing or debugging an integration that already exists: the doctor, the code review, the running app, and the report |
 | [rn-fix-placement.md](references/rn-fix-placement.md) | Moving a misplaced `SanarRTC` or another component to where it works |
+| [rn-upgrade.md](references/rn-upgrade.md) | Upgrading an app that already has SanarKit to the covered version, including from the old unscoped package |
 | [rn-troubleshooting.md](references/rn-troubleshooting.md) | The install, build, `connect` or a video call fails, or you need the doctor and diagnostics output explained |
 | [rn-sharing.md](references/rn-sharing.md) | The app needs to share a link from its own screens |
 | [rn-component-skdashboard.md](references/rn-component-skdashboard.md) | Adding `SKDashboard` |

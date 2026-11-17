@@ -32,6 +32,7 @@ const EXPECTED_REFERENCES = [
   'rn-troubleshooting.md',
   'rn-diagnose.md',
   'rn-fix-placement.md',
+  'rn-upgrade.md',
   'rn-sharing.md',
   'rn-component-skdashboard.md',
   'rn-component-skservice.md',
@@ -309,6 +310,8 @@ test('frontmatter follows the Agent Skills spec', () => {
   for (const [key, value] of Object.entries(fm.metadata)) {
     assert.equal(typeof value, 'string', `metadata.${key} is a string`);
   }
+  assert.match(fm.metadata.version, /^\d+\.\d+\.\d+$/, 'metadata.version is the skill\'s own semantic version');
+  assert.ok(readText(README_MD).includes(`Skill version ${fm.metadata.version}`), 'the README states the same skill version');
   const versions = fm.metadata['sdk-versions'];
   for (const covered of ['react-native 3.1.1', 'ios 2.1.1', 'android 2.1.1']) {
     assert.ok(versions?.includes(covered), `metadata.sdk-versions mentions "${covered}"`);

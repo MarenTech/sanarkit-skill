@@ -1,6 +1,6 @@
 # SanarKit integration skill
 
-An [Agent Skill](https://agentskills.io/specification) that lets an AI coding agent add the SanarKit SDK to your app and put a Sanar component on screen. It can also check an integration you already have, report what is wrong with the fix, and move a misplaced component to where it works. It covers three separate SDKs: React Native, iOS and Android.
+An [Agent Skill](https://agentskills.io/specification) that lets an AI coding agent add the SanarKit SDK to your app and put a Sanar component on screen. It can also check an integration you already have, report what is wrong with the fix, move a misplaced component to where it works, and upgrade your app to the current SDK version. It covers three separate SDKs: React Native, iOS and Android.
 
 The skill is one folder, `skills/sanarkit-integration/`:
 
@@ -29,6 +29,10 @@ Ask the agent to diagnose your SanarKit setup. It changes nothing until you have
 ### Fix a misplaced component
 
 On React Native, `SanarRTC` must be rendered once, at the app root, after your app's content, with `enable` tied to your connected flag. If it is inside a screen, rendered twice, rendered conditionally, or inside a padded or safe-area view, the agent tells you what it will move and where, waits for your yes, makes the smallest change, and checks the result with the doctor.
+
+### Upgrade SanarKit
+
+Ask the agent to upgrade SanarKit. It tells you the installed version, the target and what changes, and asks before it starts. On React Native it installs the new version with your package manager, runs `npx sanarkit-setup` and the doctor, rebuilds, and offers the features the new version adds (such as `onError` on `SanarRTC`). An app on the old unscoped `react-native-sanarkit` package also gets its imports changed. It reports what behaves differently and what you should test.
 
 What it will not do: hardcode, commit or print your client ID, change code the integration does not need, upgrade your framework or dependencies without asking, or make up member details.
 
@@ -105,6 +109,10 @@ Fix a misplaced component:
 
 > Use the sanarkit-integration skill to check where SanarRTC is rendered in this app and move it to the recommended place.
 
+Upgrade to the current SDK version:
+
+> Use the sanarkit-integration skill to upgrade SanarKit in this app to the latest version it covers.
+
 An iOS or Android app:
 
 > Use the sanarkit-integration skill to add the SanarKit dashboard to the home screen of this app.
@@ -112,6 +120,8 @@ An iOS or Android app:
 Keep your client ID out of the chat. The agent asks where your config lives, and leaves a placeholder in a git-ignored file for you to fill in.
 
 ## SDK versions covered
+
+Skill version 1.1.0.
 
 | SDK | Version the references were written against |
 | --- | --- |
