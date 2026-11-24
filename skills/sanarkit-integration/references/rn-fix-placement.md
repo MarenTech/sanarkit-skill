@@ -142,7 +142,7 @@ export default function RootLayout() {
 
 - **A constant `true`, or set before `connect`:** tie it to the connected flag.
 - **Left out or `false` while other Sanar components are in use:** `enable={false}` calls `SanarKit.disconnect()` and ends the session for all of them. Tie it to the connected flag.
-- **`connect` runs again while `enable` stays `true`** (for example on a user switch): set the flag to `false`, call `connect`, and set it to `true` once it resolves with `status: true`.
+- **`connect` runs again while `enable` stays `true`** (for example on a user switch or when the app returns to the foreground): on SDK 3.1.5 and later this is safe, because `SanarRTC` moves to the new connection, so leave it. On 3.1.4 and earlier, set the flag to `false`, call `connect`, and set it to `true` once it resolves with `status: true`. For a different member, still call `SanarKit.disconnect()` first.
 
 ### 8. Hidden behind the app's own view
 

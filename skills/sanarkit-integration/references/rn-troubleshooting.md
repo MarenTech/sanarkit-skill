@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.1.4 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.1.5 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -249,11 +249,11 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.1.4, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.1.5, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
-`connect` does not close the real-time connection of an earlier session. Call `SanarKit.disconnect()` before connecting another member. If the app uses `SanarRTC`, set its `enable` to `false` first, and to `true` again after the new `connect` succeeds.
+Before SDK 3.1.5, `connect` did not close the real-time connection of an earlier session. From 3.1.5 a repeated `connect` replaces the connection and closes the old one, and `SanarRTC` moves to the new one. For another member, still call `SanarKit.disconnect()` before the new `connect`, so the earlier member's session ends. On 3.1.4 and earlier, if the app uses `SanarRTC`, set its `enable` to `false` first, and to `true` again after the new `connect` succeeds.
 
 ## Components
 
@@ -300,9 +300,17 @@ Work through the list:
 2. `enable` follows the result of `SanarKit.connect`. `SanarRTC` attaches its listeners at the moment `enable` becomes `true`, and only if a session exists then. If `enable` was already `true` before `connect` succeeded, it never attached them.
 3. `enable` has not been set to `false` since. That calls `SanarKit.disconnect()`, which ends the session.
 4. A doctor started the call. Members do not start calls with `SanarRTC`.
-5. The app is in the foreground. For a member whose app is in the background or closed, the developer needs their own notification path. That is outside this integration.
+5. The app is in the foreground, or was just opened from a call notification. For a member whose app is suspended or closed, the developer needs their own notification path. That is outside this integration. If the ringer is missing only when the app opens from a call notification, see "The ringer does not show after the app opens from a call notification" below.
 
-On SDK 3.1.0, `SanarKit.diagnose()` answers points 1 to 3 directly: see `session`, `socket`, `sanar_rtc_mounted` and `sanar_rtc_listening` in "Start here". A `sanar_rtc_listening` error that names an old messaging socket means `connect` was called again while `enable` stayed `true`: set `enable` to `false`, call `connect`, and set `enable` to `true` once it resolves with `status: true`.
+On SDK 3.1.0, `SanarKit.diagnose()` answers points 1 to 3 directly: see `session`, `socket`, `sanar_rtc_mounted` and `sanar_rtc_listening` in "Start here". On SDK 3.1.4 and earlier, a `sanar_rtc_listening` error that names an old messaging socket means `connect` was called again while `enable` stayed `true`: set `enable` to `false`, call `connect`, and set `enable` to `true` once it resolves with `status: true`. SDK 3.1.5 and later move `SanarRTC` to the new connection, so that error no longer comes from a repeated `connect`.
+
+### The ringer does not show after the app opens from a call notification
+
+The member taps a call notification, the app opens (from killed, or from the background), and no ringer appears, although calls ring while the app is in the foreground.
+
+1. **Upgrade first.** SDK 3.1.4 and earlier drop a call that the Sanar connection delivers before `SanarRTC` is listening, which is exactly what happens as the app opens. SDK 3.1.5 holds such a call for up to 60 seconds and rings once `SanarRTC` is enabled and listening. Check the installed version and, with the developer's go-ahead, follow the upgrade reference.
+2. **Add no app code for it.** Do not add a notification handler that calls `SanarKit.handleIncomingCall`. It is an optional hand-off for a future option (the payload must carry the recipient's `uid`, and it rings only for that user), and the app does not need it.
+3. **Still no ringer on 3.1.5.** Turn on `SanarKit.setDebug(true)` and open the app from the notification again. If there is no `Incoming call (socket)` line, the Sanar service did not send the `VIDEO_CALL` message again after the app reconnected, and nothing in the app can bring it back. Report it for the Sanar team, with the console lines and the time of the call. Also check that the call was still ringing: a call older than 60 seconds, or one the doctor already ended, does not ring, and neither does one received for another member than the one now connected.
 
 ### The ringer shows, but nothing appears after Accept
 
@@ -398,7 +406,7 @@ Then find the code: search for `SanarKit.disconnect(`, for what `SanarRTC`'s `en
 1. Keep the session for as long as the member is signed in. Call `connect` once at the app root, and `SanarKit.disconnect()` only at sign-out or when the member changes. Remove it from screen cleanups and from the call-status handler.
 2. Render `SanarRTC` once at the root, always mounted, with `enable` tied to the connected flag. Do not set `enable` to `false` when a call ends. If `SanarRTC` is in a call screen, follow the fix-placement reference.
 3. Do not show members an error for `'disconnect'`, `CALL_END_USER` or `CALL_END_PROVIDER`. Log them. From 3.1.0, a failed call is `CALL_FAILED` with the details in `onError`, and the SDK shows its own failure screen.
-4. If the app must end the session on purpose, it starts a new one before the next call can ring: set `enable` to `false`, call `connect`, and set `enable` back to `true` after it resolves with `status: true`. `SanarRTC` attaches its listeners only when `enable` changes, so a `connect` while `enable` stays `true` leaves it on the closed connection.
+4. If the app must end the session on purpose, it starts a new one before the next call can ring: set `enable` to `false`, call `connect`, and set `enable` back to `true` after it resolves with `status: true`. On SDK 3.1.4 and earlier, `SanarRTC` attaches its listeners only when `enable` changes, so a `connect` while `enable` stays `true` leaves it on the closed connection. From 3.1.5 it moves to the new connection, but the `enable` round trip still works.
 
 **Verify.** End a call. No `Disconnected with Sanar` (3.0.1) or `[SanarKit][SDK] Disconnected from SanarKit` (3.1.0) line appears until sign-out, the app shows no error, and on 3.1.0 `SanarKit.diagnose()` still reports `session` and `sanar_rtc_listening` as ok. Only a doctor can start the next call, so say whether it was tested.
 
@@ -411,7 +419,7 @@ The real-time connection to Sanar closed. It is not a call status and not a call
 - **The network dropped.** The session stays, and the connection reconnects by itself. Whether calls come back after that without any action from the app is to confirm.
 - **Sanar's server closed the connection** (reason `io server disconnect` on 3.1.0). It does not reconnect by itself. Report it for the Sanar team.
 
-After the app ended the session, start a new one: set `enable` to `false`, call `SanarKit.connect`, and set `enable` back to `true` after it resolves with `status: true`. After a network drop, do not call `connect` just because you saw `'disconnect'`: a second `connect` does not close the first connection, and `SanarRTC` only attaches its listeners again when `enable` changes. The `socket` check of `diagnose()` shows whether the connection is back.
+After the app ended the session, start a new one: set `enable` to `false`, call `SanarKit.connect`, and set `enable` back to `true` after it resolves with `status: true`. After a network drop, do not call `connect` just because you saw `'disconnect'`: on 3.1.4 and earlier a second `connect` does not close the first connection and `SanarRTC` only attaches its listeners again when `enable` changes (from 3.1.5 it moves to the new connection, but the reconnect is still not needed). The `socket` check of `diagnose()` shows whether the connection is back.
 
 ### `SanarRTC` fails when a callback is left out
 

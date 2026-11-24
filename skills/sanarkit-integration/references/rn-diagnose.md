@@ -18,7 +18,7 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 Read the installed version from `node_modules/@maren-sa/react-native-sanarkit/package.json` (in the app, or hoisted to the monorepo root), and the `react-native` and `react` versions.
 
 - **3.1.0 or later:** the doctor command, `SanarKit.diagnose()`, the SDK logs and `onError` exist. Carry on.
-- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.4, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
+- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.5, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
 - A `sanar-rtc` dependency, or an import from `'react-native-sanarkit'` without the `@maren-sa/` scope, means a 2.x integration. Report it and stop: this skill does not cover 2.x.
 
 ## 2. The doctor (project files)
@@ -72,7 +72,7 @@ Then read each file it lists and check these. The right-hand column is the findi
 | The view around `<SanarRTC />` fills the window: no padding, no safe-area view, no `ScrollView`, not below a header or above a tab bar | The call screen is cropped or offset |
 | `SanarRTC`'s `enable` is a flag that becomes `true` only after `connect` resolved with `status: true` | A constant `true`, or a flag set before `connect`: `SanarRTC` is not listening, so calls never ring |
 | `enable` is never `false` or left out while members use other Sanar components | `enable={false}` calls `SanarKit.disconnect()` and ends the session for all of them |
-| `connect` is not called again while `enable` stays `true` | `SanarRTC` listens on the old connection, so new calls do not ring |
+| On SDK 3.1.4 or earlier: `connect` is not called again while `enable` stays `true` (from 3.1.5 this is safe, so do not report it) | `SanarRTC` listens on the old connection, so new calls do not ring |
 | Nothing ends the session when a call ends: no `SanarKit.disconnect()` and no `enable` set to `false` on `CALL_END_USER`, `CALL_END_PROVIDER` or `'disconnect'` | The session ends after every call, so the next call does not ring until `connect` runs again |
 | `SanarRTC` does not unmount with a call screen | No call rings while it is unmounted. The session stays |
 | The app shows members no error for `'disconnect'`, `CALL_END_USER` or `CALL_END_PROVIDER` | Members see a connection error after a call that ended normally |
@@ -111,7 +111,7 @@ If the developer declines the temporary code, or nobody can run the app now, ski
 | `session` | `connect` has not succeeded | Check the client ID, the environment and the member fields, and enable components only after `connect` |
 | `socket` | The connection that delivers calls is down | Check the network: after a drop it reconnects by itself. If the app closed it (`SanarKit.disconnect()` or `enable={false}`) or Sanar's server did (reason `io server disconnect`), it stays down until a new session: `enable` to `false`, `connect`, then `enable` to `true` |
 | `sanar_rtc_mounted` | `SanarRTC` is mounted zero times, or more than once. Zero is expected in an app that does not use video calls | Move it to the root, and keep one (the fix-placement reference) |
-| `sanar_rtc_listening` | `enable` is `false`, was `true` before `connect` succeeded, or `connect` ran again while it stayed `true` | Tie `enable` to the connected flag. To reconnect: `enable` to `false`, `connect`, then `enable` to `true` |
+| `sanar_rtc_listening` | `enable` is `false`, was `true` before `connect` succeeded, or (SDK 3.1.4 and earlier) `connect` ran again while it stayed `true` | Tie `enable` to the connected flag. To reconnect on 3.1.4 and earlier: `enable` to `false`, `connect`, then `enable` to `true`. From 3.1.5 a repeated `connect` keeps `SanarRTC` listening |
 | `sanar_rtc_layout` | `SanarRTC`'s area does not cover the window. The message gives the measured size and position | Move it out of the padded or partial container (the fix-placement reference) |
 | `permission_microphone`, `permission_camera` | Blocked: the member must allow it in Settings. Unavailable: a missing `Info.plist` key, `Podfile` entry or manifest permission, and the `fix` says which | Add the missing entry and rebuild |
 | `permission_bluetooth` | Android only, optional. A warning at most | None needed for calls |
@@ -126,7 +126,8 @@ Match the symptom, then confirm it with steps 2 to 4. The troubleshooting refere
 
 | Symptom | Most likely cause | Confirm with |
 | --- | --- | --- |
-| The ringer never appears | `SanarRTC` is not listening: `enable` was set before `connect` succeeded, is `false`, or `connect` ran again. Or the app is in the background | `sanar_rtc_listening`, `session`, `socket` |
+| The ringer never appears | `SanarRTC` is not listening: `enable` was set before `connect` succeeded, is `false`, or (SDK 3.1.4 and earlier) `connect` ran again. Or the app is in the background | `sanar_rtc_listening`, `session`, `socket` |
+| The ringer does not show after the app opens from a call notification | SDK 3.1.4 or earlier drops a call that arrives before `SanarRTC` listens. On 3.1.5 the Sanar service did not send the call again after the app reconnected | The SDK version. With `SanarKit.setDebug(true)`, an `Incoming call (socket)` log line. See the troubleshooting entry |
 | The ringer shows, then nothing after Accept | SDK 3.0.1 or earlier and the call could not be joined. Or `SanarRTC` unmounted when the member accepted | The SDK version. `[SanarKit][RTC]` warning "SanarRTC unmounted during an active call". `onError` |
 | "Call could not be connected" | The call failed. The `stage` in `onError` says where | The `[SanarKit][RTC]` and `[SanarKit][Agora]` lines |
 | "Call could not be connected" 30 seconds after Accept, with `timeout` and "Could not join the call within 30 seconds" | The device's network blocks the call connection: a company proxy, a VPN, a secure web gateway or a firewall. A simulator or an emulator uses the computer's network | Ask which network the device or the computer was on. The same call on a real phone on mobile data, with any VPN off |
