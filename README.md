@@ -132,7 +132,7 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 ## SDK versions covered
 
-Skill version 1.3.0.
+Skill version 1.3.1.
 
 | SDK | Version the references were written against |
 | --- | --- |

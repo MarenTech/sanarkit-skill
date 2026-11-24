@@ -2,6 +2,8 @@
 
 Use this when a diagnosis, the doctor, an SDK warning or the developer says that `SanarRTC` or another Sanar component is in the wrong place, and the developer asked you to fix it.
 
+The developer console has the same rules as a page for people, with a review checklist: [Place the components](https://developer.sanar.sa/docs/react-native/component-placement#review-checklist). Give the developer that link when they want to review the placement themselves or share it with their team. Act on the rules in this file: you do not need to open the page.
+
 ## The recommended layout
 
 One `SanarRTC`, at the app root, after the app's content, always mounted, with `enable` tied to the connected flag:
@@ -94,7 +96,7 @@ If the condition was a business rule and not the connected state (for example ca
 
 ### 4. Inside a view that does not fill the window
 
-A padded view, a safe-area view, a `ScrollView`, a `KeyboardAvoidingView`, a card, or anything below a header or above a tab bar. Safe-area padding alone is enough to crop the call screen and trigger the `[SanarKit][Layout]` warning.
+A padded view, a safe-area view, a `ScrollView`, a `KeyboardAvoidingView`, a card, or anything below a header or above a tab bar. A safe-area view can shrink or offset the area enough to crop the call screen. The SDK measures the area when `SanarRTC` mounts and logs the `[SanarKit][Layout]` warning when it starts more than 64 points below the top of the window, or covers less than 95% of its height or less than its full width.
 
 Before:
 

@@ -2,7 +2,7 @@
 name: sanarkit-integration
 description: "Integrates the SanarKit SDK (Sanar telemedicine: booking, appointments, consultations and video calls) into a client's React Native, iOS or Android app. It detects the app type, installs the SDK, adds the camera and microphone permissions, connects a member without hardcoding the client ID, and adds the SanarKit component or screen the developer chooses. It also diagnoses an existing SanarKit integration and reports what is wrong with the fix, moves a misplaced SanarRTC or other Sanar component to where it works, and upgrades an app to the SDK version it covers. It can prepare a redacted report to send to the Sanar team. Use when the developer asks to add, integrate, set up, check, diagnose, debug, fix, upgrade or update Sanar or SanarKit, to report a SanarKit problem to Sanar, or to add Sanar booking, appointments, consultations or video calls, in a React Native, iOS (Swift) or Android (Kotlin) app. Does not cover the Web SDK."
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   sdk-versions: "react-native 3.1.5; ios 2.1.1; android 2.1.1"
 ---
 
@@ -229,7 +229,7 @@ Each file is linked here directly. Read only the ones for the detected SDK, and 
 | [rn-connect.md](references/rn-connect.md) | Setting the environment and calling `connect`, and the member fields |
 | [rn-permissions.md](references/rn-permissions.md) | Adding the iOS and Android camera and microphone permissions |
 | [rn-diagnose.md](references/rn-diagnose.md) | Checking, diagnosing or debugging an integration that already exists: the doctor, the code review, the running app, and the report |
-| [rn-fix-placement.md](references/rn-fix-placement.md) | Moving a misplaced `SanarRTC` or another component to where it works |
+| [rn-fix-placement.md](references/rn-fix-placement.md) | Moving a misplaced `SanarRTC` or another component to where it works. For the developer's own review, link the console's [Place the components](https://developer.sanar.sa/docs/react-native/component-placement#review-checklist) guide |
 | [rn-upgrade.md](references/rn-upgrade.md) | Upgrading an app that already has SanarKit to the covered version, including from the old unscoped package |
 | [rn-troubleshooting.md](references/rn-troubleshooting.md) | The install, build, `connect` or a video call fails, or you need the doctor and diagnostics output explained |
 | [rn-sharing.md](references/rn-sharing.md) | The app needs to share a link from its own screens |
