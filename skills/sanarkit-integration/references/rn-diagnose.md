@@ -18,7 +18,8 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 Read the installed version from `node_modules/@maren-sa/react-native-sanarkit/package.json` (in the app, or hoisted to the monorepo root), and the `react-native` and `react` versions.
 
 - **3.1.0 or later:** the doctor command, `SanarKit.diagnose()`, the SDK logs and `onError` exist. Carry on.
-- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.1.5, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
+- **3.0.1 or earlier:** none of them exist. Do steps 3 and 5 only, say in the report that the tools are missing, and recommend the upgrade to 3.2.0, because it also fixes the blank screen after Accept. Ask before you upgrade. These versions still print a few plain console lines, such as `Disconnected with Sanar` when `SanarKit.disconnect()` runs, so ask for the console lines around the problem too.
+- **3.1.5 or earlier, on Android, with calls that drop when the member leaves the app** (for example to take a photo from the consultation chat): 3.2.0 fixes that with a foreground service. Recommend the upgrade, and ask.
 - A `sanar-rtc` dependency, or an import from `'react-native-sanarkit'` without the `@maren-sa/` scope, means a 2.x integration. Report it and stop: this skill does not cover 2.x.
 
 ## 2. The doctor (project files)
@@ -36,7 +37,7 @@ It reads the project and changes nothing. It prints findings in groups, with a f
 | Versions | The React Native and React versions against the range SanarKit supports |
 | Dependencies | Each peer dependency against its supported range, and the deprecated `sanar-rtc` |
 | iOS | `NSCameraUsageDescription` and `NSMicrophoneUsageDescription` in `Info.plist`, `setup_permissions` with `'Camera'` and `'Microphone'` in the `Podfile`, the `react-native-agora` and `react-native-permissions` pods in `Podfile.lock`, and the New Architecture setting (information) |
-| Android | The `CAMERA`, `RECORD_AUDIO`, `INTERNET` and `MODIFY_AUDIO_SETTINGS` permissions (declared, or provided by `react-native-agora`, and not removed), `BLUETOOTH_CONNECT`, and the New Architecture setting (information) |
+| Android | The `CAMERA`, `RECORD_AUDIO`, `INTERNET` and `MODIFY_AUDIO_SETTINGS` permissions (declared, or provided by `react-native-agora`, and not removed), `BLUETOOTH_CONNECT`, and the New Architecture setting (information). From 3.2.0: in an app that renders `SanarRTC`, that `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MICROPHONE` are not removed, and that Agora's screen-sharing service and its permission are removed, with the line to add |
 | Placement | `<SanarRTC />` rendered not at all, more than once, or in a file under a `screens`, `pages` or `views` folder |
 
 Copy every error and warning into the report with its fix. On SDK 3.1.0 the Placement check also counts `<SanarRTC` inside a comment, so open each line it names before you report a duplicate. SDK 3.1.1 ignores comments. Placement findings are warnings, not errors, so read the output even when the exit code is 0. "SanarRTC is not rendered anywhere" is expected in an app that does not use video calls.
@@ -45,7 +46,7 @@ How to read some lines:
 
 - **"is in package.json but not installed in node_modules"**, or **"Pods are not installed"**: the dependencies were never installed on this machine. Ask the developer to install them (`npm install`, then `pod install`) and run the doctor again, because the Android check below depends on it.
 - **`MODIFY_AUDIO_SETTINGS`, `CAMERA`, `RECORD_AUDIO` or `INTERNET` "is not declared":** the doctor accepts a permission that the app's manifest declares or that `react-native-agora`'s own manifest provides. `MODIFY_AUDIO_SETTINGS` normally comes from `react-native-agora`. If it is reported missing, check first that `react-native-agora` is installed. Add it to the app's manifest only if it is still missing after that.
-- **The storage permissions** in the permissions reference are not checked by the doctor. Check them by reading the manifest.
+- **The storage permissions** in the permissions reference are not checked by the doctor. Check them by reading the manifest. From 3.2.0 SanarKit needs only `WRITE_EXTERNAL_STORAGE` up to Android 9 (`android:maxSdkVersion="28"`), and never `READ_EXTERNAL_STORAGE`.
 
 The doctor cannot see: how `enable` is set, the container `SanarRTC` is rendered in, whether `connect` is awaited, anything at run time, or the developer's backend. Steps 3 and 4 cover those.
 
@@ -115,6 +116,7 @@ If the developer declines the temporary code, or nobody can run the app now, ski
 | `sanar_rtc_layout` | `SanarRTC`'s area does not cover the window. The message gives the measured size and position | Move it out of the padded or partial container (the fix-placement reference) |
 | `permission_microphone`, `permission_camera` | Blocked: the member must allow it in Settings. Unavailable: a missing `Info.plist` key, `Podfile` entry or manifest permission, and the `fix` says which | Add the missing entry and rebuild |
 | `permission_bluetooth` | Android only, optional. A warning at most | None needed for calls |
+| `android_call_service` | Android, SDK 3.2.0, when `SanarRTC` is mounted: SanarKit's call service is not linked, so a call can drop while the member is out of the app | Rebuild the Android app. If `react-native.config.js` leaves SanarKit's Android code out (`platforms: { android: null }`), remove that: it is only for apps without video calls |
 
 `platform` is information: copy it into the report (OS, React Native, React, New Architecture).
 
@@ -127,10 +129,11 @@ Match the symptom, then confirm it with steps 2 to 4. The troubleshooting refere
 | Symptom | Most likely cause | Confirm with |
 | --- | --- | --- |
 | The ringer never appears | `SanarRTC` is not listening: `enable` was set before `connect` succeeded, is `false`, or (SDK 3.1.4 and earlier) `connect` ran again. Or the app is in the background | `sanar_rtc_listening`, `session`, `socket` |
-| The ringer does not show after the app opens from a call notification | SDK 3.1.4 or earlier drops a call that arrives before `SanarRTC` listens. On 3.1.5 the Sanar service did not send the call again after the app reconnected | The SDK version. With `SanarKit.setDebug(true)`, an `Incoming call (socket)` log line. See the troubleshooting entry |
+| The ringer does not show after the app opens from a call notification | SDK 3.1.4 or earlier drops a call that arrives before `SanarRTC` listens. On 3.1.5 and later the Sanar service did not send the call again after the app reconnected | The SDK version. With `SanarKit.setDebug(true)`, an `Incoming call (socket)` log line. See the troubleshooting entry |
 | The ringer shows, then nothing after Accept | SDK 3.0.1 or earlier and the call could not be joined. Or `SanarRTC` unmounted when the member accepted | The SDK version. `[SanarKit][RTC]` warning "SanarRTC unmounted during an active call". `onError` |
 | "Call could not be connected" | The call failed. The `stage` in `onError` says where | The `[SanarKit][RTC]` and `[SanarKit][Agora]` lines |
 | "Call could not be connected" 30 seconds after Accept, with `timeout` and "Could not join the call within 30 seconds" | The device's network blocks the call connection: a company proxy, a VPN, a secure web gateway or a firewall. A simulator or an emulator uses the computer's network | Ask which network the device or the computer was on. The same call on a real phone on mobile data, with any VPN off |
+| A video call drops when the member opens the camera from the consultation chat, or leaves the app (Android) | SDK 3.1.5 or earlier, which has no call service. Or 3.2.0 without a native rebuild | The SDK version. `android_call_service` from `diagnose()`. `[SanarKit][CallService]` lines. Whether a "Call in progress" notification shows during the call. The troubleshooting entry |
 | The call screen is cropped or offset | `SanarRTC` is in a container that does not fill the window | `[SanarKit][Layout]` warning, `sanar_rtc_layout` |
 | The call screen is behind something | The app draws a `Modal` or a native overlay above it. The SDK cannot detect this | Read what the app renders after or above `SanarRTC` |
 | The phone rings twice, or two call screens | More than one `SanarRTC` | The doctor's Placement group, `sanar_rtc_mounted` |

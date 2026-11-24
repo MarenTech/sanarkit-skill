@@ -138,7 +138,7 @@ const [expandCall, setExpandCall] = useState(false);
 | `CALL_ACCEPTED` | The member tapped Accept. The call is connecting |
 | `CALL_REJECTED` | The member tapped Decline on the ringer |
 | `CALL_END_USER` | The member ended the call |
-| `CALL_END_PROVIDER` | The doctor's side ended the call |
+| `CALL_END_PROVIDER` | The doctor's side ended the call. From 3.2.0, when the doctor's connection drops instead, the call first waits up to 25 seconds for them, and ends with `CALL_FAILED` if they do not come back |
 | `CALL_FAILED` | Since 3.1.0. An accepted call could not be connected, or its connection failed during the call. The member sees the failure screen, and `onError` receives the details |
 | `'disconnect'` | Not a call status, and not an error: do not show members an error for it. The real-time connection to Sanar closed, so calls cannot arrive until it is open again. The app closes it with `SanarKit.disconnect()` or with `enable={false}` (then it stays closed), or the network dropped (then it reconnects by itself). Seen right after `CALL_END_USER` or `CALL_END_PROVIDER`, suspect that the app ended the session when the call ended, and confirm it from the logs and the code: see "An error, or `'disconnect'`, right after a call ends" in the troubleshooting reference |
 
@@ -151,7 +151,7 @@ Since 3.1.0. `onError` receives `{ stage, code?, message }` when an accepted cal
 | `payload` | The incoming call is missing its provider ID, token or room name |
 | `engine_init` | The call engine (Agora) could not be started. `code` is the Agora error code when there is one |
 | `join` | Agora rejected the join request. `code` is the Agora error code when there is one |
-| `connection` | Agora reported a failed connection, before or during the call, for example an invalid or expired token. `code` is Agora's reason |
+| `connection` | Agora reported a failed connection, before or during the call, for example an invalid or expired token. `code` is Agora's reason. From 3.2.0, also when the doctor's connection dropped during the call and did not come back within 25 seconds (no `code`) |
 | `timeout` | The call did not connect within 30 seconds of accepting. The `message` says which side: "Could not join the call within 30 seconds" (the member's device did not reach the call servers, which a company proxy, a VPN or a firewall on its network can cause), or "Joined the call, but the doctor did not join within 30 seconds" |
 | `callback` | One of the app's own `SanarRTC` callbacks threw. The SDK catches it and the call continues, with no `CALL_FAILED` |
 
@@ -161,9 +161,9 @@ The types `SanarRTCError` and `SanarRTCErrorStage` are in `@maren-sa/react-nativ
 
 Since 3.1.0. Use these while integrating, and offer them to the developer for production evidence. Do not add a logger or a diagnostics screen unasked.
 
-- **`SanarKit.setDebug(__DEV__)`**, called once at startup next to `setEnvironment`, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]` (call lifecycle and placement warnings), `[SanarKit][Agora]`, `[SanarKit][Socket]` (the messaging connection, with the reason when it closes), `[SanarKit][SDK]` (for example `Disconnected from SanarKit` when `SanarKit.disconnect()` runs), `[SanarKit][Permissions]`, `[SanarKit][Layout]` and `[SanarKit][Diagnose]`.
+- **`SanarKit.setDebug(__DEV__)`**, called once at startup next to `setEnvironment`, prints the SDK's debug logs to the console. Warnings and errors are printed without it. The lines start with `[SanarKit][RTC]` (call lifecycle and placement warnings), `[SanarKit][Agora]`, `[SanarKit][Socket]` (the messaging connection, with the reason when it closes), `[SanarKit][SDK]` (for example `Disconnected from SanarKit` when `SanarKit.disconnect()` runs), `[SanarKit][Permissions]`, `[SanarKit][Layout]`, `[SanarKit][Diagnose]` and, on Android from 3.2.0, `[SanarKit][CallService]` (the call service, and why it could not start).
 - **`SanarKit.setLogger(fn)`** receives every log entry, `{ level, tag, message, data?, timestamp }`, whatever `setDebug` is set to, so the app can forward them to its crash reporter. Pass `null` to remove it. The SDK leaves the call token, the session token and the Agora app ID out of its entries. Messages from Agora and from the app's own callbacks are passed on as they are.
-- **`await SanarKit.diagnose()`** checks the running app without prompting for anything: the session, the messaging socket, that `SanarRTC` is mounted once, is listening and covers the screen, and the permission status. It logs each finding and returns `{ ok, errors, warnings, checks: [{ id, status, message, fix? }], timestamp }`. With `setDebug(true)` called before `SanarRTC` is enabled, it runs by itself about 3 seconds after `SanarRTC` is first enabled.
+- **`await SanarKit.diagnose()`** checks the running app without prompting for anything: the session, the messaging socket, that `SanarRTC` is mounted once, is listening and covers the screen, and the permission status. It logs each finding and returns `{ ok, errors, warnings, checks: [{ id, status, message, fix? }], timestamp }`. From 3.2.0, on Android with `SanarRTC` mounted, it also checks that SanarKit's call service is linked (`android_call_service`). With `setDebug(true)` called before `SanarRTC` is enabled, it runs by itself about 3 seconds after `SanarRTC` is first enabled.
 
 Neither the logs nor `diagnose()` can check the call token or the developer's backend. A call that fails for those reasons reports it through `onError`.
 
@@ -179,6 +179,7 @@ While a video call is connected, the member can minimize it with the chat button
 
 - **App in the foreground, with a Sanar session:** SanarKit handles the whole incoming-call experience. The ringer appears, and when the member accepts, the video call connects. No webhook, backend notification or own call screen is needed.
 - **App in the background or closed:** `SanarRTC` cannot ring while the app is suspended or closed. Alerting the member is an optional extra that needs a webhook on the developer's backend and the app's own push notification setup. That is outside this integration, so tell the developer if they ask. The SDK keeps the session in memory only, so when the app starts from a notification it must call `connect` again before `enable` becomes `true`.
+- **The member leaves the app during a call (SDK 3.2.0):** on Android, SanarKit's call service keeps the call running, with a "Call in progress" notification. The member's video pauses and comes back on return. No app code is needed, but the Android app must be rebuilt after the upgrade, and Google Play needs the declaration in `rn-permissions.md` ("Store submission").
 - **App opened from a call notification (SDK 3.1.5 and later):** no app code is needed. A call the Sanar connection delivers before `SanarRTC` is listening (a cold start, or `connect` running again when the app returns to the foreground) is held for up to 60 seconds and rings once `SanarRTC` is enabled and listening. A held call is dropped when the member signs out (`disconnect`), when it was received for another user than the one now connected, or when the doctor ends it. **Do not add a notification handler that calls `SanarKit.handleIncomingCall`.** That method is an optional hand-off for a future option: its payload needs the recipient's `uid`, and it rings only for that connected user. Leave it unused unless the Sanar team asks for it. A call sent only while the app was suspended is not received, and whether the Sanar service sends a still-ringing call again after the app reconnects is outside the SDK.
 
 ## Verify
@@ -190,3 +191,4 @@ While a video call is connected, the member can minimize it with the chat button
 - With a valid client ID, after `connect` succeeds `enable` becomes `true`. A call started by a doctor shows the ringer. Only a doctor can start a call, so you will normally not be able to test this yourself. Say so, and say that you did not verify the ringer or the call.
 - After a call ends, the session stays: nothing calls `SanarKit.disconnect()` or sets `enable` to `false`, and the app shows no error.
 - After sign-out, `SanarKit.disconnect()` has run and `enable` is `false`.
+- On Android with SDK 3.2.0: the app was rebuilt, and `SanarKit.diagnose()` reports `android_call_service` as ok while `SanarRTC` is mounted.

@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.1.5 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.2.0 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -249,7 +249,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.1.5, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.2.0, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -308,9 +308,9 @@ On SDK 3.1.0, `SanarKit.diagnose()` answers points 1 to 3 directly: see `session
 
 The member taps a call notification, the app opens (from killed, or from the background), and no ringer appears, although calls ring while the app is in the foreground.
 
-1. **Upgrade first.** SDK 3.1.4 and earlier drop a call that the Sanar connection delivers before `SanarRTC` is listening, which is exactly what happens as the app opens. SDK 3.1.5 holds such a call for up to 60 seconds and rings once `SanarRTC` is enabled and listening. Check the installed version and, with the developer's go-ahead, follow the upgrade reference.
+1. **Upgrade first.** SDK 3.1.4 and earlier drop a call that the Sanar connection delivers before `SanarRTC` is listening, which is exactly what happens as the app opens. SDK 3.1.5 and later hold such a call for up to 60 seconds and rings once `SanarRTC` is enabled and listening. Check the installed version and, with the developer's go-ahead, follow the upgrade reference.
 2. **Add no app code for it.** Do not add a notification handler that calls `SanarKit.handleIncomingCall`. It is an optional hand-off for a future option (the payload must carry the recipient's `uid`, and it rings only for that user), and the app does not need it.
-3. **Still no ringer on 3.1.5.** Turn on `SanarKit.setDebug(true)` and open the app from the notification again. If there is no `Incoming call (socket)` line, the Sanar service did not send the `VIDEO_CALL` message again after the app reconnected, and nothing in the app can bring it back. Report it for the Sanar team, with the console lines and the time of the call. Also check that the call was still ringing: a call older than 60 seconds, or one the doctor already ended, does not ring, and neither does one received for another member than the one now connected.
+3. **Still no ringer on 3.1.5 or later.** Turn on `SanarKit.setDebug(true)` and open the app from the notification again. If there is no `Incoming call (socket)` line, the Sanar service did not send the `VIDEO_CALL` message again after the app reconnected, and nothing in the app can bring it back. Report it for the Sanar team, with the console lines and the time of the call. Also check that the call was still ringing: a call older than 60 seconds, or one the doctor already ended, does not ring, and neither does one received for another member than the one now connected.
 
 ### The ringer shows, but nothing appears after Accept
 
@@ -373,6 +373,20 @@ If the prompt never appears, or the app closes when a call rings:
 ### The call stays minimized
 
 `isFullscreen={true}` expands a minimized call, but the SDK only reacts when the value changes. If it was already `true` when the member minimized the call, set it to `false`, then to `true`. Setting it to `false` does not minimize a call.
+
+### A video call drops when the member opens the camera from the chat or leaves the app
+
+On Android, SDK 3.1.5 and earlier had no foreground service, so Android could pause or close the app while the member was in another app, such as the camera opened from the consultation chat, and the call dropped. 3.2.0 keeps the call running with a foreground service.
+
+1. Check the installed version. Below 3.2.0, recommend the upgrade (`rn-upgrade.md`), and ask.
+2. On 3.2.0, check that the Android app was rebuilt: the service is native code. With `SanarKit.setDebug(true)`, the line `[SanarKit][CallService] The SanarKit Android call service is not linked…` means it was not, and `diagnose()` warns with `android_call_service`.
+3. Check that the manifest does not remove `FOREGROUND_SERVICE` or `FOREGROUND_SERVICE_MICROPHONE` (the doctor warns), and that `react-native.config.js` does not leave SanarKit's Android code out in an app that has video calls.
+4. During a call, the member should see a "Call in progress" notification. On a test device, `adb shell dumpsys activity services <app package> | grep SanarCallService` shows the service while it runs.
+5. Other lines to look for: `[SanarKit][Agora] Lost the doctor's connection; waiting up to 25 seconds…` (the doctor's connection dropped; the call ends with `CALL_FAILED` if it does not come back), and `[SanarKit][RTC] SanarRTC unmounted during an active call` (the app unmounted `SanarRTC`, for example with a lock screen or a navigation reset when it returned).
+
+### Google Play asks about a `mediaProjection` foreground service
+
+That is Agora's screen-sharing extension, which `react-native-agora` adds to the app. SanarKit never shares the screen. From 3.2.0 SanarKit's manifest removes Agora's service, and the app removes the `FOREGROUND_SERVICE_MEDIA_PROJECTION` permission with one line, unless it shares or records the screen itself: see "Android: SanarKit's call service" in `rn-permissions.md`. `npx sanarkit-setup --doctor` gives the line to add.
 
 ### An error, or `'disconnect'`, right after a call ends
 
