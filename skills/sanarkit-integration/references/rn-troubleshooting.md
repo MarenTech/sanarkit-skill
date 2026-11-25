@@ -306,11 +306,43 @@ On SDK 3.1.0, `SanarKit.diagnose()` answers points 1 to 3 directly: see `session
 
 ### The ringer does not show after the app opens from a call notification
 
-The member taps a call notification, the app opens (from killed, or from the background), and no ringer appears, although calls ring while the app is in the foreground.
+Calls ring while the app is open, but not when the member opens the app from a call notification, or returns to it after using another app. The app starts from closed, or comes back from the background, and no ringer appears.
 
-1. **Upgrade first.** SDK 3.1.4 and earlier drop a call that the Sanar connection delivers before `SanarRTC` is listening, which is exactly what happens as the app opens. SDK 3.1.5 and later hold such a call for up to 60 seconds and rings once `SanarRTC` is enabled and listening. Check the installed version and, with the developer's go-ahead, follow the upgrade reference.
-2. **Add no app code for it.** Do not add a notification handler that calls `SanarKit.handleIncomingCall`. It is an optional hand-off for a future option (the payload must carry the recipient's `uid`, and it rings only for that user), and the app does not need it.
-3. **Still no ringer on 3.1.5 or later.** Turn on `SanarKit.setDebug(true)` and open the app from the notification again. If there is no `Incoming call (socket)` line, the Sanar service did not send the `VIDEO_CALL` message again after the app reconnected, and nothing in the app can bring it back. Report it for the Sanar team, with the console lines and the time of the call. Also check that the call was still ringing: a call older than 60 seconds, or one the doctor already ended, does not ring, and neither does one received for another member than the one now connected.
+The developer's notification only brings the member into the app. The webhook behind it (`consultation.calling`) carries no call data, so the app cannot start the ringer from it. The ringer shows when three things are true while the doctor is still calling: the app has a session (`SanarKit.connect` succeeded), `SanarRTC` is mounted, enabled and listening, and the Sanar connection delivers the call. Find which one is missing. Do not assume the cause from the symptom: check each row, and report only what the code or the console lines show.
+
+**1. The version.** SDK 3.1.4 and earlier drop a call that the connection delivers before `SanarRTC` is listening, and stop receiving calls when `connect` runs again while `enable` stays `true`. 3.1.5 and later hold such a call, and follow the new connection. On an older version, report it and ask before you upgrade.
+
+**2. Follow the code.** Use the lifecycle table in the diagnose reference for the moment that fails (the background, a notification, a closed connection), and check each row here.
+
+| Check | What goes wrong when it fails |
+| --- | --- |
+| `<SanarRTC />` is in the root component, not in a tab, a screen or a navigator | A tab screen is usually mounted only after the member opens that tab, and hidden while another tab is selected. After a notification the member can land elsewhere, so no `SanarRTC` is listening, or it rings where nobody sees it. A `SanarRTC` in a tab also sits above the tab bar, so `diagnose()` may warn with `sanar_rtc_layout` |
+| `SanarKit.connect` runs at app start for a signed-in member, not only when the member opens the Sanar screen or tab | The session is in memory only. After a start from closed there is no session until `connect` succeeds |
+| One `SanarRTC` stays mounted, and `enable` follows a successful `connect` | If its first render has `enable={false}`, it closes any session that already exists and clears a call that is waiting in it. `diagnose()` then reports `session` as an error although `connect` returned `status: true` |
+| `SanarRTC` is enabled while the doctor is still calling | When `SanarRTC` starts listening, the SDK drops a waiting call that arrived more than 60 seconds earlier. It also clears a waiting call if it receives the doctor's call-ended event. A sign-in, a biometric or PIN lock, or a slow start can take too long |
+| Nothing covers the root when the app opens: a lock screen, a splash or a `Modal` | The ringer shows behind it. The SDK cannot detect this |
+| The notification handler (`onNotificationOpenedApp`, `getInitialNotification`, a notification library's press event, a deep link) does not hide or remove `SanarRTC`. On Android, check whether the tap creates another activity or React root, and compare the activity and the `SanarRTC` mount and unmount timestamps before you change navigation | Navigating to another screen or tab can hide the one that holds `SanarRTC`. A navigation reset, or a new activity, can unmount the component that contains it, which removes the ringer that was showing. To check it, ask the developer to repeat the test with the handler only opening the app |
+| The app keeps the session when the connection closes: on `'disconnect'` it does not set `enable` to `false` or call `SanarKit.disconnect()` | While the app is in the background the connection to Sanar can close. `onCallStatusChange` then receives `'disconnect'`. After a network loss the connection retries by itself; after `SanarKit.disconnect()`, or a disconnect by the server, it does not. Code that turns `SanarRTC` off at that moment ends the session, and no call rings until `connect` succeeds again |
+| Where `connect` runs again, the `SanarRTC` flag is set from its result | The session is on and `SanarRTC` is off |
+| No handler calls `SanarKit.handleIncomingCall` with the notification's data | It needs the call's own data (`roomName`, `token`, `providerId`, `uid`), which the webhook does not carry, so it returns `false` and does nothing. Do not add one |
+
+**3. Read the log, if the developer agrees.** With `SanarKit.setDebug(true)` at startup, ask the developer to repeat the failing case while the doctor is still calling, with a test member in the development environment, and to paste the `[SanarKit]` lines with their timestamps. Each row says what to check next. A line is evidence of what happened, not of why.
+
+| The console shows | What to check |
+| --- | --- |
+| After a start from closed, no `[SanarKit][SDK] Connected to SanarKit` | Whether startup called `connect`, and whether it is still pending, returned `status: false` or threw |
+| `[SanarKit][Socket] Disconnected from Sanar messaging`, then `[SanarKit][Socket] Connected to Sanar messaging` | The connection closed and is open again. Read the reason and the timestamps to see whether the gap overlapped the call |
+| `[SanarKit][Socket] Disconnected from Sanar messaging`, then `[SanarKit][SDK] Disconnected from SanarKit` | The session was ended. With the reason `io client disconnect` in the first line, the app called `SanarKit.disconnect()` or set `enable` to `false`, as it does at sign-out. With another reason, the connection closed first and the app then ended the session |
+| `[SanarKit][SDK] Incoming call (socket) held until SanarRTC is enabled and connected`, and nothing after it | The call arrived before a session and a listening `SanarRTC` were both ready. Check the result of `connect`, the value of `enable`, and whether `Listening for incoming calls` appears |
+| `[SanarKit][SDK] Dropped a held incoming call: it is too old to still be ringing` | `SanarRTC` started listening more than 60 seconds after the call arrived |
+| `[SanarKit][SDK] Dropped a held incoming call: it was received for another user` | Another member signed in between the call and the ringer |
+| `[SanarKit][RTC] SanarRTC is disabled; closing the SanarKit connection` | `enable` was `false` while a session existed, so `SanarRTC` ended that session |
+| `[SanarKit][RTC] Incoming call (socket)` and `Call status: CALL_INITIATED`, but no ringer on screen | The SDK started ringing. Look at the next lines for the call ending, or `SanarRTC` being disabled or unmounted. If none appears, check whether an unselected tab or another view hides the ringer |
+| `[SanarKit][RTC] SanarRTC unmounted during an active call` (a warning, printed without debug too) | `SanarRTC` was removed during an active call, so the call screen lost its state. Compare the timestamp with `CALL_INITIATED` and `CALL_ACCEPTED` |
+| `[SanarKit][RTC] SanarRTC mounted` a second time | `SanarRTC` was mounted again, or the app renders two of them. Check the timestamps and the instance count |
+| `[SanarKit][RTC] Listening for incoming calls`, but no `Incoming call` line | Look for a line that starts with `Ignoring`: the SDK skips a call while another one is active, when it is for another member, or when the same call was just declined. If those lines do not explain it, check whether the connection was open and the doctor was still calling, and prepare a support report with the time of the call so that Sanar can check delivery |
+
+**4. Report** the row that failed, with the file and line or the console line, and the fix. For a `SanarRTC` in a tab or a screen, the fix is the fix-placement reference: move it to the root, with the connected flag, and run `connect` at start-up for a signed-in member. For a session that ends on `'disconnect'`, the fix is to set the flag only from the result of `connect`, and to `false` at sign-out. Say that only a real call can show that the fix works, and ask the developer to test from closed and from the background, on both platforms.
 
 ### The ringer shows, but nothing appears after Accept
 

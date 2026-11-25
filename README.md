@@ -7,6 +7,14 @@ The skill is one folder, `skills/sanarkit-integration/`:
 - `SKILL.md` holds the workflow and the rules the agent follows.
 - `references/` holds the exact steps, code and API tables for each SDK. The agent reads only the files for your SDK, and only when it needs them.
 
+## What the skill works on
+
+The skill is a folder of text instructions for your coding agent. It is not part of the SDK, and nothing from it goes into your app.
+
+- **What it asks the agent to read:** your app's source code and build files, the results of SanarKit's setup checks, and the SDK's console logs from a test run.
+- **What it does not need:** member or patient information. The skill does not ask for consultations, calls, chats or medical files. Use a test member in the development environment, and keep real member information, production logs and credentials out of the agent's context.
+- **Where it runs:** in the coding agent you already use, under your own agreement with that agent's provider. Your agent's permissions and settings decide what it can access and where that is processed. Sanar does not host or operate your coding agent. You decide whether to send a support report to Sanar.
+
 ## What the agent does
 
 - Works out whether your app is React Native, iOS or Android, and asks if it cannot tell (for example in a monorepo with several apps).
@@ -26,8 +34,9 @@ Ask the agent to diagnose your SanarKit setup. It changes nothing until you have
 - On iOS and Android, which have no doctor command, it checks the same areas from the SDK's references.
 - It reports each finding with its evidence and fix, what passed, and what it could not check, such as a real incoming call. Then it asks which findings to fix.
 - When a call rings but does not connect, it asks about the device's network. A company proxy, a VPN or a firewall can block the call, and no check in the project can see that.
+- It follows the session through your app's lifecycle, not only a first start: a return from the background, an open from a notification, the connection closing and coming back, a call ending, `SanarRTC` mounting again, and sign-out. For each, it reports the code that runs and the state it leaves, marked as observed, inferred from the code or not verified. It asks before it adds temporary logging to go through the same moments in the running app.
 - When the app shows an error, or `onCallStatusChange` reports `'disconnect'`, right after a call ends, it reads the console lines around the end of the call and finds the app code that ended the Sanar session, such as a `SanarKit.disconnect()` in a screen's cleanup.
-- If you ask, or if the cause is on Sanar's side or not found, it prepares a support report you can send to the Sanar team: versions, what happened, a timeline of the console lines, what the SDK reported and its findings. It redacts the client ID, tokens and member details, also from your app's own log lines.
+- If you ask, or if the cause is on Sanar's side or not found, it prepares a support report you can send to the Sanar team: versions, what happened, a timeline of the console lines, what the SDK reported and its findings. The skill tells the agent to redact the client ID, tokens and member details, also from your app's own log lines. Check the report yourself before you send it.
 
 ### Fix a misplaced component
 
@@ -108,6 +117,10 @@ Debug a problem:
 
 > Use the sanarkit-integration skill to find out why the incoming-call ringer shows but no call screen appears after the member accepts.
 
+Every stage of the app's lifecycle, not only a first start:
+
+> Use the sanarkit-integration skill to check what happens to the SanarKit session and to SanarRTC through this app's lifecycle: a first start, a return from the background, an open from a notification, the connection closing and coming back, a call ending, SanarRTC mounting again, and sign-out. Do not change anything yet, and ask before you add temporary logging. Report the state after each one as observed, inferred from the code or not verified.
+
 An error right after a call ends (paste your console lines from the end of the call, with timestamps):
 
 > Use the sanarkit-integration skill to find out why the app shows a connection error, or onCallStatusChange reports 'disconnect', right after a video call ends. Here are the console lines from the end of the call: [paste them].
@@ -132,7 +145,7 @@ Keep your client ID out of the chat. The agent asks where your config lives, and
 
 ## SDK versions covered
 
-Skill version 1.4.0.
+Skill version 1.4.1.
 
 | SDK | Version the references were written against |
 | --- | --- |

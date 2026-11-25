@@ -8,6 +8,7 @@ The goal is a report: what is wrong, the evidence, and the fix. Diagnosing chang
 
 - **Read-only.** Do not edit, install, upgrade or run `npx sanarkit-setup` (without `--doctor`, it installs packages). The one exception is the temporary runtime code in step 4, and only if the developer agrees.
 - **No secrets in the report.** If the client ID is in a tracked file, report the file and line, never the value. Do not print the config file, the member object or a `cmt` token.
+- **No member data.** You need the code and the SDK's `[SanarKit]` lines, nothing about a member. Ask for a test member in the development environment when a problem has to be reproduced, and do not ask for, open or copy member or patient records, consultation content or production logs.
 - **Evidence for every finding:** a file and line, a line of doctor output, or a console line. Do not report a guess as a finding. If you suspect something that you could not check, put it under "Could not check".
 - **Remove what you added.** Temporary diagnostic code comes out again before you finish, unless the developer asks to keep it.
 
@@ -69,11 +70,15 @@ Then read each file it lists and check these. The right-hand column is the findi
 | `connect` is awaited, `result.status` is checked, and a rejected promise is caught | A refused or failed `connect` is treated as success |
 | `SanarKit.disconnect()` runs at sign-out only, not when a screen unmounts | The session ends for every Sanar component when that screen closes |
 | `<SanarRTC />` is rendered exactly once | Not rendered: calls never ring. More than once: every one rings for the same call |
-| `<SanarRTC />` is at the app root, after the app's content, outside every screen, navigator, conditional branch and list | The call screen is lost when its parent unmounts |
+| `<SanarRTC />` is at the app root, after the app's content, outside every screen, tab, navigator, conditional branch and list | The call screen is lost when its parent unmounts. In a tab, no call rings until the member has opened that tab, and it rings unseen while another tab is selected |
+| `SanarRTC` does not first mount disabled against an existing session. A first mount with `enable` `true` after a successful `connect` is fine | `enable={false}` calls `SanarKit.disconnect()` on the first render too, so a `SanarRTC` that mounts late with `false` ends the session `connect` just created |
+| `connect` runs at app start for a signed-in member, not only when the member opens a Sanar screen | After the app opens from a call notification there is no session, so the call cannot arrive |
 | The view around `<SanarRTC />` fills the window: no padding, no safe-area view, no `ScrollView`, not below a header or above a tab bar | The call screen is cropped or offset |
 | `SanarRTC`'s `enable` is a flag that becomes `true` only after `connect` resolved with `status: true` | A constant `true`, or a flag set before `connect`: `SanarRTC` is not listening, so calls never ring |
 | `enable` is never `false` or left out while members use other Sanar components | `enable={false}` calls `SanarKit.disconnect()` and ends the session for all of them |
 | On SDK 3.1.4 or earlier: `connect` is not called again while `enable` stays `true` (from 3.1.5 this is safe, so do not report it) | `SanarRTC` listens on the old connection, so new calls do not ring |
+| The `onCallStatusChange` handler leaves the session alone on `'disconnect'`: it does not set the `SanarRTC` flag to `false`, call `SanarKit.disconnect()` or show an error | `'disconnect'` only says that the connection to Sanar closed, which also happens while the app is in the background. After a network loss the SDK retries by itself. Code that turns `SanarRTC` off at that moment ends the session, and no call rings until `connect` succeeds again |
+| Wherever `connect` runs again (an `AppState` listener, a notification handler, a retry), the `SanarRTC` flag is set from its result | The session is on and `SanarRTC` is off: `diagnose()` reports `session` as ok and `sanar_rtc_listening` as "SanarRTC enable is false" |
 | Nothing ends the session when a call ends: no `SanarKit.disconnect()` and no `enable` set to `false` on `CALL_END_USER`, `CALL_END_PROVIDER` or `'disconnect'` | The session ends after every call, so the next call does not ring until `connect` runs again |
 | `SanarRTC` does not unmount with a call screen | No call rings while it is unmounted. The session stays |
 | The app shows members no error for `'disconnect'`, `CALL_END_USER` or `CALL_END_PROVIDER` | Members see a connection error after a call that ended normally |
@@ -83,6 +88,26 @@ Then read each file it lists and check these. The right-hand column is the findi
 | Those components are rendered in a view that fills the screen, not in a `ScrollView` or a small container | The component fills only part of the screen |
 | The app never uses `SKChat` and never calls `setIsChatEnabled` | Internal API in use: consultations must use `SKConsultation` |
 | `SanarKit.setDebug` is not a constant `true` | Debug logs are printed in release builds |
+
+### The session through the app's lifecycle
+
+Do this in every check, also when the developer reported no problem. An integration is usually tested on a first start only, and the mistakes that stop calls show up later: after the background, after a notification, after the connection closed.
+
+Check the session in every integration. In an app that receives calls, also check `enable`, the connection and the mounted `SanarRTC`; mark the rows about `SanarRTC` "not applicable" in an app without calls.
+
+Follow the code that runs at each moment: the `AppState` listeners, the notification handlers, the `onCallStatusChange` handler, and every place that calls `SanarKit.connect`, calls `SanarKit.disconnect` or sets the `SanarRTC` flag.
+
+| Moment | Afterwards |
+| --- | --- |
+| First start, for a signed-in member | A session exists, `enable` is `true`, and one `SanarRTC` is mounted |
+| The app returns from the background | The same. Nothing ended the session or turned `enable` off while the app was away |
+| The app opens from a notification | The same, from closed and from the background. The handler does not hide or unmount `SanarRTC` |
+| The connection to Sanar closes and comes back | The same. `onCallStatusChange` receives `'disconnect'`, and the app leaves the flag and the session as they are |
+| A call ends | The same |
+| `SanarRTC` mounts again | Normal screen navigation keeps a `SanarRTC` at the root mounted. If the root is created again while a session exists, check the first value of `enable`: a first render with `false` closes that session |
+| Sign-out | The session is ended, and `enable` is `false` |
+
+Write the result as a table for the report: the moment, the code that runs (file and line), and the state it leaves: session on or off, `enable` `true` or `false`, `SanarRTC` mounted or not. Mark each row as observed in the running app, inferred from the code, or not verified. A call cannot ring until a session exists and `SanarRTC` is mounted, enabled and listening. While the connection to Sanar is closed, new calls cannot arrive over it. A call the SDK already received and held can still ring when `SanarRTC` starts listening. Whether a call rang is a separate fact: say that a test call rang, did not ring, or was not tested.
 
 ## 4. The running app (only with the developer's agreement)
 
@@ -102,7 +127,36 @@ With debug on before `SanarRTC` is enabled, `diagnose()` runs by itself about 3 
 SanarKit.diagnose().then((report) => console.log('[SanarKit][Diagnose] report', JSON.stringify(report.checks)));
 ```
 
-Run the app if you can, sign in so that `connect` runs, and read the console (Metro). If you cannot run it, ask the developer to run it and paste the lines that start with `[SanarKit]`. Those lines leave out the call token, the session token and the Agora app ID.
+Run the app if you can, sign in so that `connect` runs, and read the console (Metro). If you cannot run the app, ask the developer to share redacted `[SanarKit]` lines and, if they ran the lifecycle check, `[SanarCheck]` lines with their timestamps. The `[SanarKit]` lines leave out the call token, the session token and the Agora app ID.
+
+**Go through the lifecycle.** A single check after sign-in covers the first start only. To check the other moments, ask the developer first, then add one more temporary helper:
+
+```ts
+// TEMPORARY: SanarKit lifecycle check. Remove after the check.
+const sanarCheck = (moment: string) =>
+  setTimeout(async () => {
+    const report = await SanarKit.diagnose();
+    const ids = ['session', 'socket', 'sanar_rtc_mounted', 'sanar_rtc_listening'];
+    const checks = report.checks.filter((c) => ids.includes(c.id)).map(({ id, status }) => ({ id, status }));
+    console.log(`[SanarCheck] ${moment}`, JSON.stringify({ sampledAt: report.timestamp, checks }));
+  }, 3000);
+```
+
+Call it with a fixed label after `connect` resolves, when the app becomes active, in the notification handler, in `onCallStatusChange`, after sign-out, and where the component that renders `SanarRTC` mounts. Log the time of the event and the app's own `enable` value next to it. Then go through the moments in order. Drive the simulator or emulator yourself if you can. If not, give the developer one step at a time and wait for the pasted lines:
+
+1. Start the app from closed and sign in with a test member.
+2. Put another app in front for two to three minutes, then return.
+3. Close the app and open it from a notification. Then repeat from the background.
+4. Sign out.
+
+Collect the `[SanarCheck]` and `[SanarKit]` lines, redacted, with their timestamps. If two events overlap, label the sample with the later state. Mark a disconnect, a remount or a call end that you could not exercise as not verified. A test call is the only proof that a call rings, and only a doctor can start one.
+
+Read the four named checks at the time of each sample:
+
+- After a successful sign-in, `session`, `socket`, `sanar_rtc_mounted` and `sanar_rtc_listening` are `ok` in an app that receives calls. `socket` can warn for a few seconds while the connection comes back.
+- After sign-out, a `session` error is expected.
+- A mounted `SanarRTC` with `enable` `false` reports `sanar_rtc_listening` as a warning. If no `SanarRTC` is mounted, the report has no `sanar_rtc_listening` check.
+- At any other moment, compare a `session` error with the result of `connect` and with the disconnect lines. If `enable` is `false`, or no instance is mounted, read the places that set the flag and the mount lines to find out why. If the connection closes and opens again, compare the reason and the timestamps with the moment you are checking.
 
 If the developer declines the temporary code, or nobody can run the app now, skip this step. List the session, the connection, the three `sanar_rtc_*` checks and the permission status under "Could not check", and give the developer the snippet above to run later.
 
@@ -129,7 +183,7 @@ Match the symptom, then confirm it with steps 2 to 4. The troubleshooting refere
 | Symptom | Most likely cause | Confirm with |
 | --- | --- | --- |
 | The ringer never appears | `SanarRTC` is not listening: `enable` was set before `connect` succeeded, is `false`, or (SDK 3.1.4 and earlier) `connect` ran again. Or the app is in the background | `sanar_rtc_listening`, `session`, `socket` |
-| The ringer does not show after the app opens from a call notification | SDK 3.1.4 or earlier drops a call that arrives before `SanarRTC` listens. On 3.1.5 and later the Sanar service did not send the call again after the app reconnected | The SDK version. With `SanarKit.setDebug(true)`, an `Incoming call (socket)` log line. See the troubleshooting entry |
+| Calls ring on a first start, but not after the app was in the background or was opened from a notification | One moment of the lifecycle leaves the app unable to receive a call: the session was ended (often on `'disconnect'`), `enable` stayed `false` after `connect` ran again, or `SanarRTC` is in a tab or a screen that is not mounted or not on screen. Or SDK 3.1.4 or earlier | The SDK version, then the lifecycle table from step 3 and the lifecycle steps from step 4. The troubleshooting entry "The ringer does not show after the app opens from a call notification" reads each console line |
 | The ringer shows, then nothing after Accept | SDK 3.0.1 or earlier and the call could not be joined. Or `SanarRTC` unmounted when the member accepted | The SDK version. `[SanarKit][RTC]` warning "SanarRTC unmounted during an active call". `onError` |
 | "Call could not be connected" | The call failed. The `stage` in `onError` says where | The `[SanarKit][RTC]` and `[SanarKit][Agora]` lines |
 | "Call could not be connected" 30 seconds after Accept, with `timeout` and "Could not join the call within 30 seconds" | The device's network blocks the call connection: a company proxy, a VPN, a secure web gateway or a firewall. A simulator or an emulator uses the computer's network | Ask which network the device or the computer was on. The same call on a real phone on mobile data, with any VPN off |
@@ -161,8 +215,11 @@ Errors (the integration does not work until these are fixed)
 Warnings (works, but will fail in some cases)
 ...
 
+Lifecycle (state after each moment)
+<moment> | <code that runs, file:line> | session <on/off> | enable <true/false> | SanarRTC <mounted/not mounted> | <observed / inferred from the code / not verified> | test call <rang / did not ring / not tested>
+
 Passed
-- <one line for each area that is fine: versions, dependencies, iOS, Android, connect, placement, permissions>
+- <one line for each area that is fine: versions, dependencies, iOS, Android, connect, placement, lifecycle, permissions>
 
 Could not check
 - <for example: the running app, a real incoming call, the device's network, the release build, the backend>
