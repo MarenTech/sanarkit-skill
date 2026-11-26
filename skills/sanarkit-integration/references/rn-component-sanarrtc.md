@@ -15,9 +15,9 @@ Real-time video consultations between members and doctors, including the incomin
 
 - The SDK is installed, and `react-native-agora` is installed (`npx sanarkit-setup`, or the manual steps on pnpm, installs it and removes the old `sanar-rtc`).
 - The camera and microphone permissions are added, and on iOS the `Podfile` calls `setup_permissions` with `'Camera'` and `'Microphone'`. The native apps were rebuilt. When the ringer appears, the SDK asks for the microphone permission (and Bluetooth on Android 12 and later, which never blocks a call). The camera permission is asked for when the member turns the camera on in the call controls.
-- **Connect first, and enable from the result.** Set `enable` to `true` only after `SanarKit.connect` has succeeded. `SanarRTC` attaches its listeners at the moment `enable` becomes `true`, and only if a session exists then. With no session, nothing is attached and no calls arrive. The SDK logs a warning, and `SanarKit.diagnose()` reports it, but no callback runs.
+- **Connect first.** `SanarRTC` needs the session that `SanarKit.connect` creates. On SDK 3.3.0, leave `enable` out: `SanarRTC` starts listening when `connect` succeeds, follows a repeated `connect`, and stops when `SanarKit.disconnect()` ends the session. On 3.2.0 and earlier `enable` is required: set it to `true` only after `connect` has succeeded. With no session no calls arrive: with `enable={true}` the SDK logs a warning, and without `enable` `SanarKit.diagnose()` reports that `SanarRTC` is waiting for `connect`.
 - **Mount it once, at the app root,** after the app's content (for example after the navigation container), not inside a screen. Its ringer and call view draw above the rest of the app, so they stay available on every screen and across navigation. See "Placement" below for what goes wrong elsewhere.
-- **`enable={false}` ends the Sanar session.** When `enable` is `false`, `SanarRTC` calls `SanarKit.disconnect()`. That closes the real-time connection and clears the session for every Sanar component. It also happens when `SanarRTC` mounts with `enable` left `false`, which is the default. So tie `enable` to the app's own `connected` flag. Never leave `enable` unset or `false` while members use `SKDashboard` or any other component. If it was turned off, call `connect` again before opening them.
+- **`enable={false}` ends the Sanar session.** Changing `enable` to `false` resets any call and clears the session for every Sanar component. On 3.2.0 and earlier this also happens when `SanarRTC` first mounts with `enable` `false` or left out; from 3.3.0 a first render with `false` leaves an existing session alone, and a prop that is left out follows the session. A prop passed with the value `undefined`, such as `enable={connected}` before `connected` is set, still counts as `false`. If the app passes `enable={true}`, a call stays on screen when `SanarKit.disconnect()` runs, so at sign-out it sets `enable` to `false`, or leaves the prop out. Never set `enable` to `false` while members use `SKDashboard` or any other component.
 - **Callbacks.** In SDK 3.1.0 every callback is optional, and a callback that throws is caught and reported. Still pass `onCallStatusChange` and `onError`, so the app hears about calls and failures. Pass `onViewModeChange` only if the app uses it. If the developer keeps SDK 3.0.1 or earlier, always pass both `onCallStatusChange` and `onViewModeChange`, even if they only log: on React 19 (React Native 0.78 and later) those versions do not get their default callbacks.
 - The app has a `connected` flag from the connect step (`useSanarSession()` from the session provider in `rn-connect.md`, or the app's own).
 
@@ -25,7 +25,7 @@ Real-time video consultations between members and doctors, including the incomin
 
 | Prop | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `enable` | `boolean` | No | `false` | Turns the SanarRTC module on or off. Tie it to the app's `connected` flag. `false` calls `SanarKit.disconnect()` |
+| `enable` | `boolean` | No | None | Optional from 3.3.0: left out, `SanarRTC` listens whenever a session exists. If the app passes it, tie it to the app's `connected` flag. Changing it to `false` resets any call and ends the session |
 | `onCallStatusChange` | `function` | No | none | Called when the call status changes. Receives one of `CALL_INITIATED`, `CALL_ACCEPTED`, `CALL_REJECTED`, `CALL_END_USER`, `CALL_END_PROVIDER` or `CALL_FAILED`, or `'disconnect'` when the socket disconnects. Optional from 3.1.0, but pass it |
 | `isFullscreen` | `boolean` | No | `false` | Set to `true` to expand a minimized call view to fullscreen. Setting `false` has no effect: the member minimizes the call with the call controls |
 | `onViewModeChange` | `function` | No | none | Called when the call view changes size. Receives the mode, `'fullscreen'` or `'minimized'`. Optional from 3.1.0 |
@@ -42,7 +42,7 @@ import type { RTCViewStatus } from '@maren-sa/react-native-sanarkit';
 
 ### One component, mounted at the root
 
-Create a small component that reads the connected flag, and mount it once, inside the session provider and next to the navigation container.
+Create a small component that reads the connected flag, and mount it once, inside the session provider and next to the navigation container. The example passes `enable={connected}`, which works on every 3.x version and ends the session when the flag turns `false` at sign-out. On SDK 3.3.0 the prop can be left out: `SanarRTC` then follows the session, and sign-out must call `SanarKit.disconnect()`.
 
 ```tsx
 // SanarCalls.tsx
@@ -140,7 +140,7 @@ const [expandCall, setExpandCall] = useState(false);
 | `CALL_END_USER` | The member ended the call |
 | `CALL_END_PROVIDER` | The doctor's side ended the call. From 3.2.0, when the doctor's connection drops instead, the call first waits up to 25 seconds for them, and ends with `CALL_FAILED` if they do not come back |
 | `CALL_FAILED` | Since 3.1.0. An accepted call could not be connected, or its connection failed during the call. The member sees the failure screen, and `onError` receives the details |
-| `'disconnect'` | Not a call status, and not an error: do not show members an error for it. The real-time connection to Sanar closed, so calls cannot arrive until it is open again. The app closes it with `SanarKit.disconnect()` or with `enable={false}` (then it stays closed), or the network dropped (then it reconnects by itself). Seen right after `CALL_END_USER` or `CALL_END_PROVIDER`, suspect that the app ended the session when the call ended, and confirm it from the logs and the code: see "An error, or `'disconnect'`, right after a call ends" in the troubleshooting reference |
+| `'disconnect'` | Not a call status, and not an error: do not show members an error for it. The real-time connection to Sanar closed, so calls cannot arrive until it is open again. From 3.3.0 it is reported only when the connection does not come back by itself: the app called `SanarKit.disconnect()`, or the server closed the connection. On 3.2.0 and earlier it is also reported when the network dropped, and the connection then reconnects by itself. Seen right after `CALL_END_USER` or `CALL_END_PROVIDER`, suspect that the app ended the session when the call ended, and confirm it from the logs and the code: see "An error, or `'disconnect'`, right after a call ends" in the troubleshooting reference |
 
 ## Call failures (`onError`)
 
@@ -179,16 +179,16 @@ While a video call is connected, the member can minimize it with the chat button
 
 - **App in the foreground, with a Sanar session:** SanarKit handles the whole incoming-call experience. The ringer appears, and when the member accepts, the video call connects. No webhook, backend notification or own call screen is needed.
 - **App in the background or closed:** `SanarRTC` cannot ring while the app is suspended or closed. Alerting the member is an optional extra that needs a webhook on the developer's backend and the app's own push notification setup. That is outside this integration, so tell the developer if they ask. The SDK keeps the session in memory only, so when the app starts from a notification it must call `connect` again before `enable` becomes `true`.
-- **The member leaves the app during a call (SDK 3.2.0):** on Android, SanarKit's call service keeps the call running, with a "Call in progress" notification. The member's video pauses and comes back on return. No app code is needed, but the Android app must be rebuilt after the upgrade, and Google Play needs the declaration in `rn-permissions.md` ("Store submission").
+- **The member leaves the app during a call (SDK 3.2.0 and later):** on Android, SanarKit's call service keeps the call running, with a "Call in progress" notification. The member's video pauses and comes back on return. No app code is needed, but the Android app must be rebuilt after the upgrade, and Google Play needs the declaration in `rn-permissions.md` ("Store submission").
 - **App opened from a call notification (SDK 3.1.5 and later):** no app code is needed. A call the Sanar connection delivers before `SanarRTC` is listening (a cold start, or `connect` running again when the app returns to the foreground) is held for up to 60 seconds and rings once `SanarRTC` is enabled and listening. A held call is dropped when the member signs out (`disconnect`), when it was received for another user than the one now connected, or when the doctor ends it. **Do not add a notification handler that calls `SanarKit.handleIncomingCall`.** That method is an optional hand-off for a future option: its payload needs the recipient's `uid`, and it rings only for that connected user. Leave it unused unless the Sanar team asks for it. A call sent only while the app was suspended is not received, and whether the Sanar service sends a still-ringing call again after the app reconnects is outside the SDK.
 
 ## Verify
 
 - The app builds on both platforms, with the permissions and the Podfile setup in place, and the native apps were rebuilt.
-- `SanarRTC` appears once in the tree, at the root, and its `enable` is the app's `connected` flag and not a constant.
+- `SanarRTC` appears once in the tree, at the root. On 3.3.0 it has no `enable`, or its `enable` is the app's `connected` flag and not a constant. On 3.2.0 and earlier `enable` is required.
 - `onCallStatusChange` and `onError` are passed, and `CALL_FAILED` is handled or deliberately ignored.
 - `npx sanarkit-setup --doctor` reports `SanarRTC` rendered once, and no error. With `SanarKit.setDebug(true)`, the console shows no `[SanarKit][RTC]` or `[SanarKit][Layout]` warning after `enable` becomes `true`.
 - With a valid client ID, after `connect` succeeds `enable` becomes `true`. A call started by a doctor shows the ringer. Only a doctor can start a call, so you will normally not be able to test this yourself. Say so, and say that you did not verify the ringer or the call.
 - After a call ends, the session stays: nothing calls `SanarKit.disconnect()` or sets `enable` to `false`, and the app shows no error.
-- After sign-out, `SanarKit.disconnect()` has run and `enable` is `false`.
-- On Android with SDK 3.2.0: the app was rebuilt, and `SanarKit.diagnose()` reports `android_call_service` as ok while `SanarRTC` is mounted.
+- After sign-out, `SanarKit.disconnect()` has run. If the app passes `enable`, it is `false`.
+- On Android with SDK 3.2.0 and later: the app was rebuilt, and `SanarKit.diagnose()` reports `android_call_service` as ok while `SanarRTC` is mounted.

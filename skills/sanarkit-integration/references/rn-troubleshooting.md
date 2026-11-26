@@ -1,6 +1,6 @@
 # React Native troubleshooting
 
-Fixes for the problems you meet when you install, build or connect SanarKit 3.2.0 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
+Fixes for the problems you meet when you install, build or connect SanarKit 3.3.0 in a React Native app, or when a video call does not work. Find the symptom, try the fix, and report what you changed. When you search the logs for a message, search for the exact text: the SDK writes its warnings to the console, and some of them contain typos that are part of the message.
 
 Before you change anything that is not in the integration (dependencies, native settings, Gradle, Podfile), tell the developer and ask.
 
@@ -249,7 +249,7 @@ A component opened while there was no session, so it logged this warning and cal
 
 ### `staging` behaves like `development`
 
-In SDK 3.2.0, `setEnvironment('staging')` uses the development host. Treat the two as the same.
+In SDK 3.3.0, `setEnvironment('staging')` uses the development host. Treat the two as the same.
 
 ### After a user switch, the earlier member's connection stays open
 
@@ -318,11 +318,11 @@ The developer's notification only brings the member into the app. The webhook be
 | --- | --- |
 | `<SanarRTC />` is in the root component, not in a tab, a screen or a navigator | A tab screen is usually mounted only after the member opens that tab, and hidden while another tab is selected. After a notification the member can land elsewhere, so no `SanarRTC` is listening, or it rings where nobody sees it. A `SanarRTC` in a tab also sits above the tab bar, so `diagnose()` may warn with `sanar_rtc_layout` |
 | `SanarKit.connect` runs at app start for a signed-in member, not only when the member opens the Sanar screen or tab | The session is in memory only. After a start from closed there is no session until `connect` succeeds |
-| One `SanarRTC` stays mounted, and `enable` follows a successful `connect` | If its first render has `enable={false}`, it closes any session that already exists and clears a call that is waiting in it. `diagnose()` then reports `session` as an error although `connect` returned `status: true` |
+| One `SanarRTC` stays mounted, and `enable` follows a successful `connect` or, on SDK 3.3.0, is left out | On SDK 3.2.0 and earlier, if its first render has `enable={false}`, it closes any session that already exists and clears a call that is waiting in it. `diagnose()` then reports `session` as an error although `connect` returned `status: true`. From 3.3.0 a first render with `false` leaves the session alone |
 | `SanarRTC` is enabled while the doctor is still calling | When `SanarRTC` starts listening, the SDK drops a waiting call that arrived more than 60 seconds earlier. It also clears a waiting call if it receives the doctor's call-ended event. A sign-in, a biometric or PIN lock, or a slow start can take too long |
 | Nothing covers the root when the app opens: a lock screen, a splash or a `Modal` | The ringer shows behind it. The SDK cannot detect this |
-| The notification handler (`onNotificationOpenedApp`, `getInitialNotification`, a notification library's press event, a deep link) does not hide or remove `SanarRTC`. On Android, check whether the tap creates another activity or React root, and compare the activity and the `SanarRTC` mount and unmount timestamps before you change navigation | Navigating to another screen or tab can hide the one that holds `SanarRTC`. A navigation reset, or a new activity, can unmount the component that contains it, which removes the ringer that was showing. To check it, ask the developer to repeat the test with the handler only opening the app |
-| The app keeps the session when the connection closes: on `'disconnect'` it does not set `enable` to `false` or call `SanarKit.disconnect()` | While the app is in the background the connection to Sanar can close. `onCallStatusChange` then receives `'disconnect'`. After a network loss the connection retries by itself; after `SanarKit.disconnect()`, or a disconnect by the server, it does not. Code that turns `SanarRTC` off at that moment ends the session, and no call rings until `connect` succeeds again |
+| The notification handler (`onNotificationOpenedApp`, `getInitialNotification`, a notification library's press event, a deep link) does not hide or remove `SanarRTC`. On Android, check whether the tap creates another activity or React root, and compare the activity and the `SanarRTC` mount and unmount timestamps before you change navigation | Navigating to another screen or tab can hide the one that holds `SanarRTC`. A navigation reset, or a new activity, can unmount the component that contains it, which removes the ringer that was showing. From SDK 3.3.0 the call is held and rings again when `SanarRTC` is listening; on 3.2.0 and earlier it is lost. To check it, ask the developer to repeat the test with the handler only opening the app |
+| The app keeps the session when the connection closes: on `'disconnect'` it does not set `enable` to `false` or call `SanarKit.disconnect()` | While the app is in the background the connection to Sanar can close. On SDK 3.2.0 and earlier `onCallStatusChange` then receives `'disconnect'`; from 3.3.0 it is reported only when the connection does not come back by itself. After a network loss the connection retries by itself; after `SanarKit.disconnect()`, or a disconnect by the server, it does not. Code that turns `SanarRTC` off at that moment ends the session, and no call rings until `connect` succeeds again |
 | Where `connect` runs again, the `SanarRTC` flag is set from its result | The session is on and `SanarRTC` is off |
 | No handler calls `SanarKit.handleIncomingCall` with the notification's data | It needs the call's own data (`roomName`, `token`, `providerId`, `uid`), which the webhook does not carry, so it returns `false` and does nothing. Do not add one |
 
@@ -411,7 +411,7 @@ If the prompt never appears, or the app closes when a call rings:
 On Android, SDK 3.1.5 and earlier had no foreground service, so Android could pause or close the app while the member was in another app, such as the camera opened from the consultation chat, and the call dropped. 3.2.0 keeps the call running with a foreground service.
 
 1. Check the installed version. Below 3.2.0, recommend the upgrade (`rn-upgrade.md`), and ask.
-2. On 3.2.0, check that the Android app was rebuilt: the service is native code. With `SanarKit.setDebug(true)`, the line `[SanarKit][CallService] The SanarKit Android call service is not linked…` means it was not, and `diagnose()` warns with `android_call_service`.
+2. On 3.2.0 and later, check that the Android app was rebuilt: the service is native code. With `SanarKit.setDebug(true)`, the line `[SanarKit][CallService] The SanarKit Android call service is not linked…` means it was not, and `diagnose()` warns with `android_call_service`.
 3. Check that the manifest does not remove `FOREGROUND_SERVICE` or `FOREGROUND_SERVICE_MICROPHONE` (the doctor warns), and that `react-native.config.js` does not leave SanarKit's Android code out in an app that has video calls.
 4. During a call, the member should see a "Call in progress" notification. On a test device, `adb shell dumpsys activity services <app package> | grep SanarCallService` shows the service while it runs.
 5. Other lines to look for: `[SanarKit][Agora] Lost the doctor's connection; waiting up to 25 seconds…` (the doctor's connection dropped; the call ends with `CALL_FAILED` if it does not come back), and `[SanarKit][RTC] SanarRTC unmounted during an active call` (the app unmounted `SanarRTC`, for example with a lock screen or a navigation reset when it returned).

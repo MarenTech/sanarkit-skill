@@ -6,7 +6,7 @@ The developer console has the same rules as a page for people, with a review che
 
 ## The recommended layout
 
-One `SanarRTC`, at the app root, after the app's content, always mounted, with `enable` tied to the connected flag:
+One `SanarRTC`, at the app root, after the app's content, always mounted. From SDK 3.3.0 `enable` can be left out, and `SanarRTC` then follows the session. Keep an `enable` the app already passes, tied to the connected flag, and on 3.2.0 and earlier it is required:
 
 ```tsx
 // App.tsx (the root component)
@@ -143,7 +143,7 @@ export default function RootLayout() {
 ### 7. `enable` is wrong
 
 - **A constant `true`, or set before `connect`:** tie it to the connected flag.
-- **Left out or `false` while other Sanar components are in use:** `enable={false}` calls `SanarKit.disconnect()` and ends the session for all of them. Tie it to the connected flag.
+- **`false` while other Sanar components are in use:** changing `enable` to `false` ends the session for all of them. Tie it to the connected flag, or on SDK 3.3.0 offer to remove the prop. On 3.2.0 and earlier a left-out `enable` means `false` and has the same effect.
 - **`connect` runs again while `enable` stays `true`** (for example on a user switch or when the app returns to the foreground): on SDK 3.1.5 and later this is safe, because `SanarRTC` moves to the new connection, so leave it. On 3.1.4 and earlier, set the flag to `false`, call `connect`, and set it to `true` once it resolves with `status: true`. For a different member, still call `SanarKit.disconnect()` first.
 
 ### 8. Hidden behind the app's own view

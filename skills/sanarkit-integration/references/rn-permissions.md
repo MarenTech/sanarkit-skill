@@ -2,7 +2,7 @@
 
 Add the camera and microphone permissions that SanarKit video consultations need, on iOS and on Android, and set up `react-native-permissions` for iOS. Rebuild the native apps afterwards, because a JavaScript reload is not enough.
 
-These are the entries from the SDK 3.2.0 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
+These are the entries from the SDK 3.3.0 README, checked against the Sanar developer docs. Add what is missing and leave the rest of each file alone.
 
 ## Rules
 
@@ -76,7 +76,7 @@ These five are the SDK's list. Add exactly these, and skip any that the manifest
 
 SDK 3.1.5 and earlier listed `READ_EXTERNAL_STORAGE` and a `WRITE_EXTERNAL_STORAGE` without a limit. SanarKit never asks for either. If the manifest has them from an earlier integration, tell the developer that `READ_EXTERNAL_STORAGE` can go and `WRITE_EXTERNAL_STORAGE` can take `android:maxSdkVersion="28"`, unless the app uses them for its own features. Ask before you change them.
 
-## Android: SanarKit's call service (SDK 3.2.0)
+## Android: SanarKit's call service (SDK 3.2.0 and later)
 
 From 3.2.0 SanarKit has Android code: a foreground service, of type `microphone`, that keeps a video call running while the member is out of the app, for example while they take a photo with the camera from the consultation chat. SanarKit's own manifest adds it, with the `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MICROPHONE` permissions, when the app is built. Do not add them, and do not remove them with `tools:node="remove"`. Rebuild the Android app after the install or the upgrade, because a JavaScript reload does not include it.
 
